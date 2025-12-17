@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- 自定義 CSS -->
+<style>
+    /* Brand Card 樣式 */
+    .brand-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
+        border: 1px solid #e0e0e0;
+        text-align: center;
+        padding: 15px;
+        background: #fff;
+        border-radius: 10px;
+        height: 100%;
+        display: block;
+        text-decoration: none;
+        color: #333;
+    }
+    .brand-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        border-color: #0d6efd;
+        color: #0d6efd;
+    }
+    .brand-card.active {
+        background-color: #e3f2fd;
+        border-color: #0d6efd;
+        color: #0d6efd;
+        font-weight: bold;
+    }
+    .brand-img-placeholder {
+        font-size: 2rem;
+        color: #adb5bd;
+        margin-bottom: 10px;
+    }
+    .brand-card.active .brand-img-placeholder {
+        color: #0d6efd;
+    }
+    /* 數量輸入框樣式 */
+    .qty-input {
+        width: 80px;
+        text-align: center;
+    }
+</style>
+
+<h2>🔎 Equipment Inventory</h2>
+
+<!-- 1. Metrics Row (頂部統計卡片) -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="metric-card d-flex align-items-center justify-content-between">
+            <div><small class="text-muted">TOTAL ASSETS</small><h2 class="mb-0">{{ total }}</h2></div>
+            <div class="fs-1 text-primary">📦</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="metric-card d-flex align-items-center justify-content-between">
+            <div><small class="text-muted">AVAILABLE</small><h2 class="mb-0 text-success">{{ avail }}</h2></div>
+            <div class="fs-1 text-success">✅</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="metric-card d-flex align-items-center justify-content-between">
+            <div><small class="text-muted">UNAVAILABLE</small><h2 class="mb-0 text-warning">{{ loaned }}</h2></div>
+            <div class="fs-1 text-warning">⏳</div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. Chart & Categories (中部圖表與分類) -->
+<div class="row mb-4">
+    <!-- 左邊圖表 -->
+    <div class="col-md-4">
+        <div class="card p-3 h-100">
+            <h5>Status Distribution</h5>
+            <div class="d-flex align-items-center justify-content-center h-100">
+                <canvas id="statusChart" style="max-height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右邊：分類瀏覽區 -->
+    <div class="col-md-8">
+        <div class="card p-3 h-100">
+            
+            <!-- Category 選擇區 -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <h5>📂 Browse by Category</h5>
+                {% if curr_cat != 'ALL' %}
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-sm btn-danger">Reset All</a>
+                {% endif %}
+            </div>
+
+            <div class="row g-2">
+                {% for cat in ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Others'] %}
+                <div class="col-4 col-md-2">
+                    <a href="{{ url_for('dashboard', category=cat) }}" 
+                       class="btn w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center {% if curr_cat == cat %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                        <i class="fas fa-tag mb-1"></i> {{ cat }}
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- Brand 選擇區 (只有選了 Category 後才會出現) -->
+            {% if curr_cat != 'ALL' %}
+                <hr>
+                <h6 class="text-muted mb-3">Select Brand in <b>{{ curr_cat }}</b>:</h6>
+                
+                <div class="row g-3">
+                    <!-- 'All Brands' 選項 -->
+                    <div class="col-6 col-sm-4 col-md-3">
+                        <a href="{{ url_for('dashboard', category=curr_cat, brand='ALL') }}" 
+                           class="brand-card {% if curr_brand == 'ALL' %}active{% endif %}">
+                            <div class="brand-img-placeholder"><i class="fas fa-th-large"></i></div>
+                            <div>All Brands</div>
+                        </a>
+                    </div>
+
+                    <!-- 迴圈顯示 Brand 方塊 -->
+                    {% for b in brands %}
+                    <div class="col-6 col-sm-4 col-md-3">
+                        <a href="{{ url_for('dashboard', category=curr_cat, brand=b) }}" 
+                           class="brand-card {% if curr_brand == b %}active{% endif %}">
+                            <div class="brand-img-placeholder"><i class="fas fa-camera"></i></div>
+                            <div>{{ b }}</div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+<!-- 3. Bottom Section: Filters & Table Form -->
+<div class="card p-3">
+    
+    <!-- (A) 獨立的 Filter Form (使用 GET 方法刷新頁面) -->
+    <form method="GET" action="{{ url_for('dashboard') }}" class="row g-3 mb-4 border-bottom pb-3">
+        <!-- 保持目前的 Category 和 Brand 狀態 -->
+        <input type="hidden" name="category" value="{{ curr_cat }}">
+        <input type="hidden" name="brand" value="{{ curr_brand }}">
+        
+        <div class="col-md-3">
+            <label class="form-label text-muted small">Filter Type</label>
+            <select name="type" class="form-select" onchange="this.form.submit()">
+                <option value="ALL" {% if curr_type == 'ALL' %}selected{% endif %}>All Types</option>
+                {% for t in types %}
+                    <option value="{{ t }}" {% if curr_type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="col-md-3">
+            <label class="form-label text-muted small">Filter Status</label>
+            <select name="status" class="form-select" onchange="this.form.submit()">
+                <option value="All" {% if curr_status == 'All' %}selected{% endif %}>All Status</option>
+                <option value="Available Only" {% if curr_status == 'Available Only' %}selected{% endif %}>Available Only</option>
+                <option value="Unavailable Only" {% if curr_status == 'Unavailable Only' %}selected{% endif %}>Unavailable Only</option>
+            </select>
+        </div>
+        
+        <div class="col-md-6 d-flex align-items-end justify-content-end">
+             <span class="text-muted small">
+                 Displaying <b>{{ data|length }}</b> items
+             </span>
+        </div>
+    </form>
+
+    <!-- (B) 獨立的 Request Form (使用 POST 方法提交申請) -->
+    <form action="{{ url_for('generate_request') }}" method="POST" target="_blank">
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0 text-primary"><i class="fas fa-list"></i> Equipment List</h5>
+            
+            <!-- Generate Request 按鈕 -->
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-file-export me-2"></i> Generate Request List
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th width="20%">Brand / Type</th>
+                        <th width="25%">Equipment Name</th>
+                        <th width="10%">Total</th>
+                        <th width="30%">Availability</th>
+                        <th width="15%" class="table-primary text-center">Request Qty</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in data %}
+                    <tr>
+                        <!-- Brand & Type -->
+                        <td>
+                            <span class="fw-bold text-secondary">{{ row['Brand'] }}</span><br>
+                            <small class="text-muted">{{ row['Type'] }}</small>
+                        </td>
+                        
+                        <!-- Name -->
+                        <td>
+                            <span class="fw-bold fs-5">{{ row['Name'] }}</span>
+                        </td>
+
+                        <!-- Total -->
+                        <td><span class="badge bg-secondary rounded-pill">{{ row['Total_Qty'] }}</span></td>
+
+                        <!-- Availability -->
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="text-success border border-success rounded p-1 px-2 bg-success-subtle">
+                                    <small class="d-block fw-bold" style="font-size:0.7rem">AVAIL</small>
+                                    <span class="fw-bold">{{ row['Avail_Qty'] }}</span>
+                                </div>
+                                {% if row['Loaned_Qty'] > 0 %}
+                                <div class="text-warning border border-warning rounded p-1 px-2 bg-warning-subtle">
+                                    <small class="d-block fw-bold text-dark" style="font-size:0.7rem">LOANED</small>
+                                    <span class="fw-bold text-dark">{{ row['Loaned_Qty'] }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+
+                        <!-- Request Input -->
+                        <td class="table-primary text-center">
+                            {% if row['Avail_Qty'] > 0 %}
+                                <input type="number" 
+                                       name="qty_{{ row['Name'] }}" 
+                                       class="form-control qty-input mx-auto" 
+                                       min="0" 
+                                       max="{{ row['Avail_Qty'] }}" 
+                                       placeholder="0">
+                            {% else %}
+                                <input type="number" class="form-control qty-input mx-auto" disabled placeholder="-">
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center py-4 text-muted">No items found matching criteria.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+</div>
+
+<!-- Chart.js Script -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Available', 'Unavailable'],
+            datasets: [{
+                data: [{{ avail }}, {{ loaned }}],
+                backgroundColor: ['#198754', '#ffc107'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+</script>
+{% endblock %}

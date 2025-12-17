@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📂 Loan Forms Record</h2>
+    <a href="{{ url_for('loan_return') }}" class="btn btn-outline-primary"><i class="fas fa-plus"></i> New Loan</a>
+</div>
+
+{% if forms %}
+    <div class="row">
+        {% for form_num, details in forms.items() %}
+        <div class="col-md-6 mb-4">
+            <!-- 依據是否完成改變卡片邊框顏色 -->
+            <div class="card h-100 shadow-sm {% if details['is_complete'] %}border-success{% else %}border-primary{% endif %}">
+                
+                <div class="card-header bg-white d-flex justify-content-between align-items-center pt-3">
+                    <div>
+                        <h5 class="mb-0 fw-bold">
+                            {% if details['is_complete'] %}
+                                <i class="fas fa-check-circle text-success me-2"></i>
+                            {% else %}
+                                <i class="fas fa-clock text-primary me-2"></i>
+                            {% endif %}
+                            {{ form_num }}
+                        </h5>
+                        <small class="text-muted">Loan Date: {{ details['date'] }}</small>
+                    </div>
+                    
+                    <!-- 狀態標籤 -->
+                    {% if details['is_complete'] %}
+                        <span class="badge bg-success">Complete</span>
+                    {% else %}
+                        <span class="badge bg-primary">Active</span>
+                    {% endif %}
+                </div>
+
+                <div class="card-body p-0">
+                    <table class="table table-sm table-striped mb-0" style="font-size: 0.9rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Item</th>
+                                <th>ID</th>
+                                <th>Return Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in details['items'] %}
+                            <tr>
+                                <td class="ps-3">
+                                    <strong>{{ item['Name'] }}</strong>
+                                </td>
+                                <td><span class="text-muted">{{ item['Equipment_ID'] }}</span></td>
+                                <td>
+                                    {% if item['Status'] == 'Returned' %}
+                                        <span class="text-success"><i class="fas fa-check small"></i> {{ item['Return_Date'] }}</span>
+                                    {% else %}
+                                        <span class="text-danger fw-bold">--</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="card-footer bg-light text-end">
+                    <small class="text-muted">Total Items: {{ details['count'] }}</small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="alert alert-info text-center py-5">
+        <h4>No loan history found.</h4>
+    </div>
+{% endif %}
+{% endblock %}
