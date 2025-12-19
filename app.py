@@ -303,7 +303,7 @@ def upload_images():
                 # 1. 開啟並壓縮圖片
                 img = Image.open(file)
                 # 使用 thumbnail 或 resize 來縮小，並保持品質
-                img = img.resize((20, 20), Image.Resampling.LANCZOS)
+                img = img.resize((50, 50), Image.Resampling.LANCZOS)
                 
                 # 2. 定義檔名 (cat_Name.png 或 brand_Name.png)
                 prefix = "cat" if upload_type == "category" else "brand"
