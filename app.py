@@ -157,12 +157,10 @@ def dashboard():
     loaned = len(df_raw[df_raw['Availability'] == 'No'])
 
     if not df_raw.empty:
-        df_display = df_raw.groupby(['Name', 'Brand', 'Type']).apply(
-            lambda x: pd.Series({
-                'Total_Qty': len(x),
-                'Avail_Qty': (x['Availability'] == 'Yes').sum(),
-                'Loaned_Qty': (x['Availability'] == 'No').sum()
-            })
+        df_display = df_raw.groupby(['Name', 'Brand', 'Type']).agg(
+            Total_Qty=('Availability', 'count'),
+            Avail_Qty=('Availability', lambda x: (x == 'Yes').sum()),
+            Loaned_Qty=('Availability', lambda x: (x == 'No').sum())
         ).reset_index()
     else:
         df_display = pd.DataFrame()
