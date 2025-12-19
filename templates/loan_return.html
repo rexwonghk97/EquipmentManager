@@ -43,7 +43,7 @@
 
     <!-- Category Buttons -->
     <div class="row g-2 mb-3">
-        {% for cat in ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Others'] %}
+        {% for cat in ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod', 'Others'] %}
         <div class="col-4 col-md-2">
             <a href="{{ url_for('loan_return', category=cat) }}" 
                class="btn btn-sm w-100 py-2 d-flex flex-column align-items-center justify-content-center {% if curr_cat == cat %}btn-primary{% else %}btn-outline-secondary{% endif %}">
