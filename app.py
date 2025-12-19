@@ -51,7 +51,7 @@ def fetch_brands(category_filter='ALL'):
     try:
         if category_filter != 'ALL':
             if category_filter == 'Others':
-                query = "SELECT DISTINCT Brand FROM Equipment_List WHERE Category NOT IN ('Lights', 'Camera', 'Digital Tablet', 'Audio', 'MICs (Recording Studio)') ORDER BY Brand"
+                query = "SELECT DISTINCT Brand FROM Equipment_List WHERE Category NOT IN ('Lights', 'Camera', 'Digital Tablet', 'Audio', 'MICs (Recording Studio)', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod') ORDER BY Brand"
                 params = []
             else:
                 query = "SELECT DISTINCT Brand FROM Equipment_List WHERE Category = ? ORDER BY Brand"
@@ -84,7 +84,7 @@ def fetch_equipment_data(availability='All', equipment_type='ALL', category_filt
 
     if category_filter != 'ALL':
         if category_filter == 'Others':
-            query_conditions.append("Equipment_List.Category NOT IN ('Lights', 'Camera', 'Digital Tablet', 'Audio', 'MICs (Recording Studio)')")
+            query_conditions.append("Equipment_List.Category NOT IN ('Lights', 'Camera', 'Digital Tablet', 'Audio', 'MICs (Recording Studio)', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod')")
         else:
             query_conditions.append("Equipment_List.Category = ?")
             params.append(category_filter)
@@ -291,7 +291,7 @@ def upload_images():
     if 'user' not in session: return redirect(url_for('dashboard'))
     
     brands = fetch_brands('ALL')
-    categories = ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Others']
+    categories = ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod', 'Others']
 
     if request.method == 'POST':
         upload_type = request.form.get('upload_type') # 'category' or 'brand'
