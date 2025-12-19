@@ -313,7 +313,7 @@ def upload_images():
                 save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 img.save(save_path)
                 
-                flash(f'Image for {target_name} uploaded and resized (20x20)!', 'success')
+                flash(f'Image for {target_name} uploaded and resized (50x50px)!', 'success')
             except Exception as e:
                 flash(f'Error processing image: {str(e)}', 'danger')
         
