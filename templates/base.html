@@ -24,8 +24,20 @@
     <div class="row">
         <!-- Sidebar -->
         <div class="col-md-2 sidebar p-3 d-flex flex-column">
-            <!-- [更名] -->
-            <h4 class="mb-4 px-2">DACI E.Manager</h4>
+    
+    <!-- 👇 修改開始：Logo 與標題區塊 -->
+            <div class="d-flex align-items-center mb-4 px-2">
+                <!-- Logo 圖片 -->
+                <!-- style="height: 1.5rem;" 會讓圖片高度跟隨 h4 的字體大小 -->
+                <img src="{{ url_for('static', filename='logo.png') }}" 
+             alt="Logo" 
+             style="height: 1.8rem; width: auto; margin-right: 10px; object-fit: contain;">
+             
+                <!-- Title -->
+                <h4 class="mb-0" style="font-weight: 700; font-size: 1.25rem;">DACI E.Manager</h4>
+            </div>
+            
+            <nav class="nav flex-column mb-auto">
             
             <nav class="nav flex-column mb-auto">
                 <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
