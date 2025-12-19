@@ -95,22 +95,33 @@
 
             <div class="row g-2">
                 {% for cat in ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Others'] %}
+                <!-- 檢查是否有圖片 -->
+                {% set icon_url = get_icon_path('cat', cat) %}
+                
                 <div class="col-4 col-md-2">
                     <a href="{{ url_for('dashboard', category=cat) }}" 
                        class="btn w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center {% if curr_cat == cat %}btn-primary{% else %}btn-outline-secondary{% endif %}">
-                        <i class="fas fa-tag mb-1"></i> {{ cat }}
+                        
+                        <!-- 顯示圖片或 Icon -->
+                        {% if icon_url %}
+                            <img src="{{ icon_url }}" alt="{{ cat }}" style="width: 20px; height: 20px; object-fit: contain; margin-bottom: 4px;">
+                        {% else %}
+                            <i class="fas fa-tag mb-1"></i> 
+                        {% endif %}
+                        
+                        {{ cat }}
                     </a>
                 </div>
                 {% endfor %}
             </div>
 
-            <!-- Brand 選擇區 (只有選了 Category 後才會出現) -->
+            <!-- Brand 選擇區 -->
             {% if curr_cat != 'ALL' %}
                 <hr>
                 <h6 class="text-muted mb-3">Select Brand in <b>{{ curr_cat }}</b>:</h6>
                 
                 <div class="row g-3">
-                    <!-- 'All Brands' 選項 -->
+                    <!-- 'All Brands' 選項 (沒有圖) -->
                     <div class="col-6 col-sm-4 col-md-3">
                         <a href="{{ url_for('dashboard', category=curr_cat, brand='ALL') }}" 
                            class="brand-card {% if curr_brand == 'ALL' %}active{% endif %}">
@@ -118,6 +129,28 @@
                             <div>All Brands</div>
                         </a>
                     </div>
+
+                    <!-- 迴圈顯示 Brand -->
+                    {% for b in brands %}
+                    {% set brand_icon_url = get_icon_path('brand', b) %}
+                    
+                    <div class="col-6 col-sm-4 col-md-3">
+                        <a href="{{ url_for('dashboard', category=curr_cat, brand=b) }}" 
+                           class="brand-card {% if curr_brand == b %}active{% endif %}">
+                            <div class="brand-img-placeholder">
+                                {% if brand_icon_url %}
+                                    <!-- 這裡也用 20x20，但因為在卡片裡，你可以考慮放大一點，或者嚴格遵守 20x20 -->
+                                    <img src="{{ brand_icon_url }}" style="width: 20px; height: 20px; object-fit: contain;">
+                                {% else %}
+                                    <i class="fas fa-camera"></i>
+                                {% endif %}
+                            </div>
+                            <div>{{ b }}</div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
 
                     <!-- 迴圈顯示 Brand 方塊 -->
                     {% for b in brands %}
