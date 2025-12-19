@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">🖼️ Upload Pictures</h2>
+    
+    <div class="row">
+        <!-- 1. Upload for Category -->
+        <div class="col-md-6">
+            <div class="card p-4 h-100">
+                <h4 class="mb-3">Upload Category Icon</h4>
+                <p class="text-muted small">Image will be resized to 20x20 pixels automatically.</p>
+                
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="upload_type" value="category">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Select Category</label>
+                        <select name="target_name" class="form-select" required>
+                            <option value="" disabled selected>Choose...</option>
+                            {% for c in categories %}
+                                <option value="{{ c }}">{{ c }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Image File</label>
+                        <input type="file" name="image_file" class="form-control" accept="image/*" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">Upload Category Icon</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 2. Upload for Brand -->
+        <div class="col-md-6">
+            <div class="card p-4 h-100">
+                <h4 class="mb-3">Upload Brand Icon</h4>
+                <p class="text-muted small">Image will be resized to 20x20 pixels automatically.</p>
+                
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="upload_type" value="brand">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Select Brand</label>
+                        <select name="target_name" class="form-select" required>
+                            <option value="" disabled selected>Choose...</option>
+                            {% for b in brands %}
+                                <option value="{{ b }}">{{ b }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Image File</label>
+                        <input type="file" name="image_file" class="form-control" accept="image/*" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-success w-100">Upload Brand Icon</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">🗄️ Database Management</h2>
+
+    <!-- Add New Item Section -->
+    <div class="card mb-5 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i> Add New Equipment</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="add_item" value="true">
+                
+                <div class="row g-3">
+                    <div class="col-md-2">
+                        <label class="form-label">ID (Unique)</label>
+                        <input type="text" name="new_id" class="form-control" placeholder="e.g. C-01" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" name="name" class="form-control" placeholder="Item Name" required>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Brand</label>
+                        <!-- 可選現有或輸入新的 -->
+                        <input type="text" name="brand" list="brand_list" class="form-control" placeholder="Brand" required>
+                        <datalist id="brand_list">
+                            {% for b in brands %}
+                                <option value="{{ b }}">
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Type</label>
+                        <input type="text" name="type" list="type_list" class="form-control" placeholder="Type" required>
+                        <datalist id="type_list">
+                            {% for t in types %}
+                                <option value="{{ t }}">
+                            {% endfor %}
+                        </datalist>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">Category</label>
+                        <select name="category" class="form-select" required>
+                            <option value="Lights">Lights</option>
+                            <option value="Camera">Camera</option>
+                            <option value="Digital Tablet">Digital Tablet</option>
+                            <option value="Audio">Audio</option>
+                            <option value="VR Headset">VR Headset</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label">Qty</label>
+                        <input type="number" name="qty" class="form-control" value="1" required>
+                    </div>
+                </div>
+                <div class="mt-3 text-end">
+                    <button type="submit" class="btn btn-primary px-4">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Existing Items List (Delete) -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i> Existing Items</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 600px;">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="sticky-top bg-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Brand</th>
+                            <th>Category</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item['Equipment_ID'] }}</td>
+                            <td>{{ item['Name'] }}</td>
+                            <td>{{ item['Brand'] }}</td>
+                            <td><span class="badge bg-secondary">{{ item['Category'] }}</span></td>
+                            <td>
+                                <form method="POST" onsubmit="return confirm('Are you sure you want to DELETE {{ item.Name }}? This cannot be undone.');">
+                                    <input type="hidden" name="delete_id" value="{{ item['Equipment_ID'] }}">
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
