@@ -383,3 +383,76 @@ def db_manage():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+@app.route('/api_update_cart', methods=['POST'])
+def api_update_cart():
+    """ 接收前端傳來的商品，存入 Session """
+    data = request.json
+    item_name = data.get('name')
+    brand = data.get('brand')
+    type_ = data.get('type')
+    qty = int(data.get('qty', 0))
+    
+    # 初始化購物車
+    if 'cart' not in session:
+        session['cart'] = {}
+    
+    cart = session['cart']
+    
+    if qty > 0:
+        # 更新或新增
+        cart[item_name] = {
+            'name': item_name,
+            'brand': brand,
+            'type': type_,
+            'qty': qty
+        }
+    else:
+        # 如果數量為 0，則移除該項目
+        if item_name in cart:
+            del cart[item_name]
+    
+    session.modified = True
+    
+    # 回傳目前購物車總共有幾項物品 (用於更新前端顯示)
+    total_items = len(cart)
+    return {'status': 'success', 'total_items': total_items, 'cart': cart}
+
+@app.route('/api_clear_cart', methods=['POST'])
+def api_clear_cart():
+    session.pop('cart', None)
+    return {'status': 'success'}
+
+# --- [修改] 生成申請單 (改為從 Session 讀取 + 接收日期) ---
+@app.route('/generate_request', methods=['POST'])
+def generate_request():
+    # 1. 取得日期
+    loan_date = request.form.get('expected_loan_date')
+    return_date = request.form.get('expected_return_date')
+    
+    # 2. 從 Session 取得購物車內容
+    cart = session.get('cart', {})
+    
+    if not cart:
+        flash('Your request list is empty. Please add items first.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    if not loan_date or not return_date:
+        flash('Please select both Loan and Return dates.', 'warning')
+        return redirect(url_for('dashboard'))
+
+    # 轉換格式給 template 使用
+    request_items = list(cart.values()) # [{'name':..., 'qty':...}, ...]
+
+    # 生成 8 位數隨機號碼
+    request_id = str(random.randint(10000000, 99999999))
+    create_date = date.today().strftime("%Y-%m-%d")
+
+    # (可選) 生成後是否清空購物車？通常生成單據後可以清空
+    # session.pop('cart', None) 
+
+    return render_template('request_summary.html', 
+                           request_id=request_id, 
+                           create_date=create_date,
+                           loan_date=loan_date,     # [新增]
+                           return_date=return_date, # [新增]
+                           items=request_items)
