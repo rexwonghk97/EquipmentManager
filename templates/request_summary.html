@@ -19,6 +19,12 @@
             .paper { box-shadow: none; max-width: 100%; padding: 20px; }
             .no-print { display: none; }
         }
+        .date-box {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
 <body>
@@ -27,30 +33,48 @@
     <div class="d-flex justify-content-between border-bottom pb-3 mb-4">
         <div>
             <h2>Equipment Request Form</h2>
-            <p class="text-muted mb-0">Lab Equipment Center</p>
+            <p class="text-muted mb-0">DACI E.Manager System</p>
         </div>
         <div class="text-end">
             <h4 class="text-primary"># {{ request_id }}</h4>
-            <p class="mb-0">Date: <strong>{{ date }}</strong></p>
+            <p class="mb-0 text-muted">Created: {{ create_date }}</p>
+        </div>
+    </div>
+
+    <!-- [新功能] 顯示借還日期 -->
+    <div class="row mb-4">
+        <div class="col-6">
+            <div class="date-box">
+                <small class="text-muted d-block">EXPECTED LOAN DATE</small>
+                <strong class="fs-5">{{ loan_date }}</strong>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="date-box">
+                <small class="text-muted d-block">EXPECTED RETURN DATE</small>
+                <strong class="fs-5">{{ return_date }}</strong>
+            </div>
         </div>
     </div>
 
     <div class="mb-4">
-        <h5>Requested Items</h5>
-        <table class="table table-bordered">
+        <h5>Requested Items List</h5>
+        <table class="table table-bordered mt-2">
             <thead class="table-light">
                 <tr>
                     <th>Item Name</th>
-                    <th width="150" class="text-center">Quantity</th>
-                    <th width="200">Staff Check</th>
+                    <th>Brand</th>
+                    <th width="120" class="text-center">Qty</th>
+                    <th width="150">Staff Check</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in items %}
                 <tr>
                     <td class="fs-5">{{ item['name'] }}</td>
+                    <td>{{ item['brand'] }}</td>
                     <td class="text-center fs-5 fw-bold">{{ item['qty'] }}</td>
-                    <td></td> <!-- 空格給管理員打勾 -->
+                    <td></td> <!-- Staff check box -->
                 </tr>
                 {% endfor %}
             </tbody>
