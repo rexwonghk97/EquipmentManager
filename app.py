@@ -32,15 +32,12 @@ def close_connection(exception):
 
 # --- 輔助函數 ---
 
-# [新功能] 檢查圖片是否存在
-# 這讓前端可以判斷：如果 user 上傳了圖片就用圖片，沒上傳就用預設 Icon
+# 檢查圖片是否存在
 @app.context_processor
 def utility_processor():
     def get_icon_path(prefix, name):
-        # 檔名規則: cat_Lights.png 或 brand_Sony.png
         filename = f"{prefix}_{name}.png"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        # 檢查檔案是否存在
         if os.path.exists(filepath):
             return url_for('static', filename=f'icons/{filename}')
         return None
@@ -157,6 +154,7 @@ def dashboard():
     loaned = len(df_raw[df_raw['Availability'] == 'No'])
 
     if not df_raw.empty:
+        # 使用 agg 解決 FutureWarning
         df_display = df_raw.groupby(['Name', 'Brand', 'Type']).agg(
             Total_Qty=('Availability', 'count'),
             Avail_Qty=('Availability', lambda x: (x == 'Yes').sum()),
@@ -175,31 +173,75 @@ def dashboard():
                            curr_cat=cat_filter, curr_type=type_filter, 
                            curr_brand=brand_filter, curr_status=status_filter)
 
+# --- [API] 購物車相關 ---
+@app.route('/api_update_cart', methods=['POST'])
+def api_update_cart():
+    """ 接收前端傳來的商品，存入 Session """
+    data = request.json
+    item_name = data.get('name')
+    brand = data.get('brand')
+    type_ = data.get('type')
+    qty = int(data.get('qty', 0))
+    
+    # 初始化購物車
+    if 'cart' not in session:
+        session['cart'] = {}
+    
+    cart = session['cart']
+    
+    if qty > 0:
+        cart[item_name] = {
+            'name': item_name,
+            'brand': brand,
+            'type': type_,
+            'qty': qty
+        }
+    else:
+        if item_name in cart:
+            del cart[item_name]
+    
+    session.modified = True
+    
+    total_items = len(cart)
+    return {'status': 'success', 'total_items': total_items, 'cart': cart}
+
+@app.route('/api_clear_cart', methods=['POST'])
+def api_clear_cart():
+    session.pop('cart', None)
+    return {'status': 'success'}
+
+# --- [Request] 生成申請單 (使用 Session) ---
 @app.route('/generate_request', methods=['POST'])
 def generate_request():
-    request_items = []
-    for key, value in request.form.items():
-        if key.startswith('qty_') and value:
-            try:
-                qty = int(value)
-                if qty > 0:
-                    item_name = key.replace('qty_', '')
-                    request_items.append({'name': item_name, 'qty': qty})
-            except ValueError:
-                continue
-
-    if not request_items:
-        flash('Please select at least one item quantity.', 'warning')
+    # 1. 取得日期
+    loan_date = request.form.get('expected_loan_date')
+    return_date = request.form.get('expected_return_date')
+    
+    # 2. 從 Session 取得購物車內容
+    cart = session.get('cart', {})
+    
+    if not cart:
+        flash('Your request list is empty. Please add items first.', 'warning')
+        return redirect(url_for('dashboard'))
+    
+    if not loan_date or not return_date:
+        flash('Please select both Loan and Return dates.', 'warning')
         return redirect(url_for('dashboard'))
 
+    # 轉換格式給 template 使用
+    request_items = list(cart.values())
+
     request_id = str(random.randint(10000000, 99999999))
-    current_date = date.today().strftime("%Y-%m-%d")
+    create_date = date.today().strftime("%Y-%m-%d")
 
     return render_template('request_summary.html', 
                            request_id=request_id, 
-                           date=current_date, 
+                           create_date=create_date,
+                           loan_date=loan_date,
+                           return_date=return_date,
                            items=request_items)
 
+# --- Loan & Return ---
 @app.route('/loan_return', methods=['GET', 'POST'])
 def loan_return():
     if 'user' not in session: 
@@ -285,7 +327,7 @@ def loan_forms():
     
     return render_template('loan_forms.html', forms=forms)
 
-# --- [新功能 1] 圖片上傳 (Resize 20x20) ---
+# --- 圖片上傳 (Resize 50x50) ---
 @app.route('/upload_images', methods=['GET', 'POST'])
 def upload_images():
     if 'user' not in session: return redirect(url_for('dashboard'))
@@ -300,16 +342,12 @@ def upload_images():
 
         if file and target_name:
             try:
-                # 1. 開啟並壓縮圖片
                 img = Image.open(file)
-                # 使用 thumbnail 或 resize 來縮小，並保持品質
                 img = img.resize((50, 50), Image.Resampling.LANCZOS)
                 
-                # 2. 定義檔名 (cat_Name.png 或 brand_Name.png)
                 prefix = "cat" if upload_type == "category" else "brand"
                 filename = f"{prefix}_{target_name}.png"
                 
-                # 3. 儲存
                 save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 img.save(save_path)
                 
@@ -321,7 +359,7 @@ def upload_images():
 
     return render_template('upload_images.html', brands=brands, categories=categories)
 
-# --- [新功能 2] 資料庫管理 (Add/Delete) ---
+# --- 資料庫管理 ---
 @app.route('/db_manage', methods=['GET', 'POST'])
 def db_manage():
     if 'user' not in session: return redirect(url_for('dashboard'))
@@ -332,8 +370,6 @@ def db_manage():
     if request.method == 'POST' and 'delete_id' in request.form:
         delete_id = request.form.get('delete_id')
         try:
-            # 刪除 Equipment_List (Loan_History 和 Transactions 保留或聯動刪除視需求，這裡做安全刪除)
-            # 先刪除 Loan_History 以免孤兒資料 (或使用 FK cascade，但這裡手動處理較保險)
             conn.execute("DELETE FROM Loan_History WHERE Equipment_ID = ?", (delete_id,))
             conn.execute("DELETE FROM Equipment_List WHERE Equipment_ID = ?", (delete_id,))
             conn.commit()
@@ -352,13 +388,11 @@ def db_manage():
         qty = request.form.get('qty', 1)
         
         try:
-            # 1. 插入 Equipment_List
             conn.execute("""
                 INSERT INTO Equipment_List (Equipment_ID, Name, Brand, Type, Category, Qty, item_created)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             """, (new_id, name, brand, type_, category, qty, date.today()))
             
-            # 2. 插入初始 Loan_History (Availability = Yes)
             conn.execute("""
                 INSERT INTO Loan_History (Equipment_ID, Availability)
                 VALUES (?, 'Yes')
@@ -372,87 +406,12 @@ def db_manage():
             flash(f'Error adding item: {e}', 'danger')
         return redirect(url_for('db_manage'))
 
-    # 讀取目前資料庫所有項目 (供刪除列表用)
     df = pd.read_sql_query("SELECT * FROM Equipment_List ORDER BY item_created DESC", conn)
-    
-    # 用於新增選單的現有選項
     existing_brands = fetch_brands('ALL')
     existing_types = fetch_types()
     
     return render_template('db_manage.html', items=df.to_dict(orient='records'), brands=existing_brands, types=existing_types)
 
+# ⚠️ 這是最重要的一行，一定要放在所有 route 定義之後
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
-@app.route('/api_update_cart', methods=['POST'])
-def api_update_cart():
-    """ 接收前端傳來的商品，存入 Session """
-    data = request.json
-    item_name = data.get('name')
-    brand = data.get('brand')
-    type_ = data.get('type')
-    qty = int(data.get('qty', 0))
-    
-    # 初始化購物車
-    if 'cart' not in session:
-        session['cart'] = {}
-    
-    cart = session['cart']
-    
-    if qty > 0:
-        # 更新或新增
-        cart[item_name] = {
-            'name': item_name,
-            'brand': brand,
-            'type': type_,
-            'qty': qty
-        }
-    else:
-        # 如果數量為 0，則移除該項目
-        if item_name in cart:
-            del cart[item_name]
-    
-    session.modified = True
-    
-    # 回傳目前購物車總共有幾項物品 (用於更新前端顯示)
-    total_items = len(cart)
-    return {'status': 'success', 'total_items': total_items, 'cart': cart}
-
-@app.route('/api_clear_cart', methods=['POST'])
-def api_clear_cart():
-    session.pop('cart', None)
-    return {'status': 'success'}
-
-# --- [修改] 生成申請單 (改為從 Session 讀取 + 接收日期) ---
-@app.route('/generate_request', methods=['POST'])
-def generate_request():
-    # 1. 取得日期
-    loan_date = request.form.get('expected_loan_date')
-    return_date = request.form.get('expected_return_date')
-    
-    # 2. 從 Session 取得購物車內容
-    cart = session.get('cart', {})
-    
-    if not cart:
-        flash('Your request list is empty. Please add items first.', 'warning')
-        return redirect(url_for('dashboard'))
-    
-    if not loan_date or not return_date:
-        flash('Please select both Loan and Return dates.', 'warning')
-        return redirect(url_for('dashboard'))
-
-    # 轉換格式給 template 使用
-    request_items = list(cart.values()) # [{'name':..., 'qty':...}, ...]
-
-    # 生成 8 位數隨機號碼
-    request_id = str(random.randint(10000000, 99999999))
-    create_date = date.today().strftime("%Y-%m-%d")
-
-    # (可選) 生成後是否清空購物車？通常生成單據後可以清空
-    # session.pop('cart', None) 
-
-    return render_template('request_summary.html', 
-                           request_id=request_id, 
-                           create_date=create_date,
-                           loan_date=loan_date,     # [新增]
-                           return_date=return_date, # [新增]
-                           items=request_items)
