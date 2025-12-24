@@ -41,7 +41,8 @@ def send_email_notification(request_id, loan_dt, return_dt, items):
     # ⚠️ 請填入你的 Gmail 設定，若無設定則只會印在 Terminal
     sender_email = "adadatasystem@gmail.com"
     sender_password = "pveq fqyt hmas pnyk" # Google App Password
-    receiver_email = "rexwong2@ln.edu.hk"
+    receiver_emails = ["rexwong2@ln.edu.hk", "tobbykan@ln.edu.hk"]
+
 
     subject = f"New Equipment Request: #{request_id}"
     
