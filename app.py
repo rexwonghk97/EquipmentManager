@@ -43,7 +43,7 @@ def send_email_notification(request_id, loan_dt, return_dt, items):
     subject = f"New Equipment Request: #{request_id}"
     msg = MIMEMultipart()
     msg['From'] = sender_email
-    msg['To'] = ", ".join(receiver_emails)
+    msg['To'] = ", ".join(receiver_emails) 
     msg['Subject'] = subject
 
     items_html = "<ul>"
