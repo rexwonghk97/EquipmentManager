@@ -3,10 +3,11 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>📂 Loan Forms Record</h2>
+    <!-- 連結到一般借還頁面 -->
     <a href="{{ url_for('loan_return') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Manual Loan</a>
 </div>
 
-<!-- PART 1: Pending Requests -->
+<!-- PART 1: Pending Requests (網上申請單) -->
 {% if pending %}
 <h5 class="text-warning mb-3"><i class="fas fa-hourglass-half me-2"></i>Pending Requests</h5>
 <div class="row mb-5">
@@ -14,28 +15,34 @@
     <div class="col-md-6 col-xl-4 mb-4">
         <div class="card h-100 border-warning shadow-sm">
             <div class="card-header bg-warning-subtle d-flex justify-content-between align-items-center">
-                <strong># {{ form.id }}</strong>
+                <strong><i class="fas fa-file-alt me-2"></i># {{ form.id }}</strong>
                 <span class="badge bg-warning text-dark">Pending</span>
             </div>
-            <div class="card-body p-2">
-                <small class="text-muted d-block mb-2">
-                    <i class="fas fa-calendar-alt me-1"></i> Loan: {{ form.loan_dt }}<br>
-                    <i class="fas fa-undo me-1"></i> Retn: {{ form.return_dt }}
-                </small>
-                <div class="bg-light p-2 rounded" style="max-height: 100px; overflow-y: auto;">
+            <div class="card-body p-3">
+                <div class="mb-3 small">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Expected Loan:</span>
+                        <strong>{{ form.loan_dt }}</strong>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">Expected Return:</span>
+                        <strong>{{ form.return_dt }}</strong>
+                    </div>
+                </div>
+                
+                <div class="bg-light p-2 rounded border" style="max-height: 120px; overflow-y: auto;">
                     <ul class="list-unstyled mb-0 small">
                         {% for item in form.items %}
-                        <li class="d-flex justify-content-between">
+                        <li class="d-flex justify-content-between border-bottom py-1">
                             <span>{{ item.name }}</span>
-                            <span class="fw-bold">x{{ item.qty }}</span>
+                            <span class="fw-bold">x {{ item.qty }}</span>
                         </li>
                         {% endfor %}
                     </ul>
                 </div>
             </div>
             <div class="card-footer bg-white text-end border-top-0">
-                <small class="text-muted">Requested Items: {{ form.count }}</small>
-                <!-- 未來可加按鈕： Approve (轉成 Active) -->
+                <small class="text-muted">Total Items: {{ form.count }}</small>
             </div>
         </div>
     </div>
@@ -45,26 +52,30 @@
 {% endif %}
 
 
-<!-- PART 2: Loan History (Active / Complete) -->
+<!-- PART 2: Loan History (已借出/已歸還) -->
 <h5 class="text-secondary mb-3"><i class="fas fa-history me-2"></i>Loan History</h5>
+
 {% if history %}
     <div class="row">
         {% for form_num, details in history.items() %}
         <div class="col-md-6 mb-4">
-            <div class="card h-100 shadow-sm {% if details['is_complete'] %}border-success{% else %}border-primary{% endif %}">
+            <!-- 依據是否完成改變卡片邊框顏色 -->
+            <div class="card h-100 shadow-sm {% if details.is_complete %}border-success{% else %}border-primary{% endif %}">
+                
                 <div class="card-header bg-white d-flex justify-content-between align-items-center pt-3">
                     <div>
                         <h5 class="mb-0 fw-bold">
-                            {% if details['is_complete'] %}
+                            {% if details.is_complete %}
                                 <i class="fas fa-check-circle text-success me-2"></i>
                             {% else %}
                                 <i class="fas fa-clock text-primary me-2"></i>
                             {% endif %}
                             {{ details.id }}
                         </h5>
-                        <small class="text-muted">Date: {{ details.loan_dt }}</small>
+                        <small class="text-muted">Loan Date: {{ details.loan_dt }}</small>
                     </div>
-                    {% if details['is_complete'] %}
+                    
+                    {% if details.is_complete %}
                         <span class="badge bg-success">Complete</span>
                     {% else %}
                         <span class="badge bg-primary">Active</span>
@@ -81,15 +92,18 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in details['items'] %}
+                            {% for item in details.items %}
                             <tr>
-                                <td class="ps-3"><strong>{{ item['Name'] }}</strong></td>
-                                <td><span class="text-muted">{{ item['Equipment_ID'] }}</span></td>
+                                <td class="ps-3">
+                                    <strong>{{ item.Name }}</strong>
+                                    <br><small class="text-muted">{{ item.Brand }}</small>
+                                </td>
+                                <td><span class="text-muted">{{ item.Equipment_ID }}</span></td>
                                 <td>
-                                    {% if item['Status'] == 'Returned' %}
-                                        <span class="text-success"><i class="fas fa-check"></i></span>
+                                    {% if item.Status == 'Returned' %}
+                                        <span class="text-success"><i class="fas fa-check"></i> {{ item.Return_Date }}</span>
                                     {% else %}
-                                        <span class="text-primary">Out</span>
+                                        <span class="badge bg-danger">Out</span>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -97,12 +111,21 @@
                         </tbody>
                     </table>
                 </div>
+                
+                <div class="card-footer bg-light text-end">
+                    <small class="text-muted">Total Count: {{ details.count }}</small>
+                </div>
             </div>
         </div>
         {% endfor %}
     </div>
 {% else %}
-    <p class="text-muted">No active loans or history found.</p>
+    {% if not pending %}
+    <div class="alert alert-info text-center py-5">
+        <h4>No loan history found.</h4>
+        <p>No pending requests and no active/history loans.</p>
+    </div>
+    {% endif %}
 {% endif %}
 
 {% endblock %}
