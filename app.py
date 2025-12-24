@@ -36,9 +36,9 @@ def close_connection(exception):
 # --- 輔助函數 ---
 
 def send_email_notification(request_id, loan_dt, return_dt, items):
-    sender_email = "your_email@gmail.com"
-    sender_password = "your_app_password"
-    receiver_emails = ["abc@gmail.com"] 
+    sender_email = "adadatasystem@gmail.com"
+    sender_password = "rzzc pjfo yuyo gqzs"
+    receiver_emails = ["rexwong2@ln.edu.hk", "tobbykan@ln.edu.hk"] 
 
     subject = f"New Equipment Request: #{request_id}"
     msg = MIMEMultipart()
