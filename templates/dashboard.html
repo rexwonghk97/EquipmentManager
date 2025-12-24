@@ -280,16 +280,23 @@
                 <div class="modal-body">
                     
                     <!-- 日期輸入 (必填) -->
+<!-- 日期與時間輸入 (必填) -->
                     <div class="row mb-4 bg-light p-3 rounded mx-1 border">
-                        <div class="col-md-6 mb-2">
-                            <label class="fw-bold mb-1">Expected Loan Date <span class="text-danger">*</span></label>
-                            <input type="date" name="expected_loan_date" class="form-control" required>
-                        </div>
-                        <div class="col-md-6 mb-2">
-                            <label class="fw-bold mb-1">Expected Return Date <span class="text-danger">*</span></label>
+                        <div class="col-md-6 mb-3">
+                            <label class="fw-bold mb-1 text-primary">Expected Loan <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="date" name="expected_loan_date" class="form-control" required>
+                                <input type="time" name="expected_loan_time" class="form-control" required>
+                            </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="fw-bold mb-1 text-primary">Expected Return <span class="text-danger">*</span></label>
+                        <div class="input-group">
                             <input type="date" name="expected_return_date" class="form-control" required>
+                            <input type="time" name="expected_return_time" class="form-control" required>
                         </div>
                     </div>
+                </div>
 
                     <h6 class="mb-3 border-bottom pb-2">Selected Equipment</h6>
                     <div id="modalCartContent">
