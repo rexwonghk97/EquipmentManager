@@ -17,10 +17,9 @@ DATABASE = 'daci_database.db'
 UPLOAD_FOLDER = 'static/icons'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# 確保圖片資料夾存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# --- 1. 資料庫連線 ---
+# --- 資料庫連線 ---
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -34,22 +33,17 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-# --- 2. 輔助函數 ---
+# --- 輔助函數 ---
 
-# Email 發送功能
 def send_email_notification(request_id, loan_dt, return_dt, items):
-    # ⚠️ 請填入你的 Gmail 設定，若無設定則只會印在 Terminal
-    sender_email = "adadatasystem@gmail.com"
-    sender_password = "pveq fqyt hmas pnyk" # Google App Password
-    receiver_emails = ["rexwong2@ln.edu.hk", "tobbykan@ln.edu.hk"]
-
+    sender_email = "your_email@gmail.com"
+    sender_password = "your_app_password"
+    receiver_emails = ["abc@gmail.com"] 
 
     subject = f"New Equipment Request: #{request_id}"
-    
-    # 建立郵件內容
     msg = MIMEMultipart()
     msg['From'] = sender_email
-    msg['To'] = receiver_email
+    msg['To'] = ", ".join(receiver_emails)
     msg['Subject'] = subject
 
     items_html = "<ul>"
@@ -68,23 +62,19 @@ def send_email_notification(request_id, loan_dt, return_dt, items):
     <p>Status: <strong>Pending</strong></p>
     <p>Please login to DACI E.Manager to review.</p>
     """
-    
     msg.attach(MIMEText(body, 'html'))
 
     try:
-        # 嘗試連線 Gmail
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(sender_email, sender_password)
         text = msg.as_string()
-        server.sendmail(sender_email, receiver_email, text)
+        server.sendmail(sender_email, receiver_emails, text)
         server.quit()
-        print(f"✅ Email notification for #{request_id} sent successfully.")
+        print(f"✅ Email sent for #{request_id}")
     except Exception as e:
-        # 如果失敗 (例如沒設密碼)，只印出錯誤但不讓程式崩潰
-        print(f"⚠️ Email sending skipped/failed: {e}")
+        print(f"⚠️ Email failed: {e}")
 
-# 前端圖片路徑輔助
 @app.context_processor
 def utility_processor():
     def get_icon_path(prefix, name):
@@ -95,14 +85,9 @@ def utility_processor():
         return None
     return dict(get_icon_path=get_icon_path)
 
-# 取得品牌列表 (包含新的排除名單)
 def fetch_brands(category_filter='ALL'):
     conn = get_db()
-    # 定義所有已知分類，用於 Others 的排除
-    known_categories = [
-        'Lights', 'Camera', 'Digital Tablet', 'Audio', 'MICs (Recording Studio)', 'VR Headset',
-        'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod'
-    ]
+    known_categories = ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod']
     try:
         if category_filter != 'ALL':
             if category_filter == 'Others':
@@ -129,16 +114,12 @@ def fetch_types():
     except:
         return []
 
-# 核心資料查詢
 def fetch_equipment_data(availability='All', equipment_type='ALL', category_filter='ALL', brand_filter='ALL'):
     conn = get_db()
     query_conditions = []
     params = []
     
-    known_categories = [
-        'Lights', 'Camera', 'Digital Tablet', 'Audio', 'MICs (Recording Studio)', 'VR Headset',
-        'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod'
-    ]
+    known_categories = ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod']
 
     if availability != 'All':
         query_conditions.append('Loan_History.Availability = ?')
@@ -181,7 +162,7 @@ def fetch_equipment_data(availability='All', equipment_type='ALL', category_filt
     df = pd.read_sql_query(query, conn, params=params)
     return df
 
-# --- 3. 路由 (Routes) ---
+# --- 路由 ---
 
 @app.route('/')
 def index():
@@ -204,6 +185,7 @@ def logout():
     flash('Logged out successfully.', 'info')
     return redirect(url_for('dashboard'))
 
+# --- [關鍵修改] Dashboard 包含 Pending 計算 ---
 @app.route('/dashboard')
 def dashboard():
     cat_filter = request.args.get('category', 'ALL')
@@ -214,28 +196,79 @@ def dashboard():
     status_map = {"All": "All", "Available Only": "Yes", "Unavailable Only": "No"}
     db_status = status_map.get(status_filter, "All")
 
+    conn = get_db()
+    
+    # 1. 取得物理庫存
     df_raw = fetch_equipment_data(db_status, type_filter, cat_filter, brand_filter)
     
-    total = len(df_raw)
-    avail = len(df_raw[df_raw['Availability'] == 'Yes'])
-    loaned = len(df_raw[df_raw['Availability'] == 'No'])
+    # 2. 計算 Pending (被預訂) 數量
+    pending_map = {} 
+    total_pending_count = 0
+    try:
+        df_req = pd.read_sql_query("SELECT Items_Json FROM Request_Records WHERE Status = 'Pending'", conn)
+        for json_str in df_req['Items_Json']:
+            try:
+                items = json.loads(json_str)
+                for i in items:
+                    name = i['name']
+                    qty = int(i['qty'])
+                    pending_map[name] = pending_map.get(name, 0) + qty
+                    total_pending_count += qty
+            except:
+                continue
+    except:
+        pass 
 
+    # 3. 整合資料
+    final_data = []
+    total_assets = 0
+    physical_loaned_total = 0
+    
     if not df_raw.empty:
-        # 使用 agg 解決 Pandas FutureWarning
-        df_display = df_raw.groupby(['Name', 'Brand', 'Type']).agg(
+        # 先計算物理狀態
+        grouped = df_raw.groupby(['Name', 'Brand', 'Type']).agg(
             Total_Qty=('Availability', 'count'),
-            Avail_Qty=('Availability', lambda x: (x == 'Yes').sum()),
-            Loaned_Qty=('Availability', lambda x: (x == 'No').sum())
+            Physical_Avail=('Availability', lambda x: (x == 'Yes').sum()),
+            Physical_Loaned=('Availability', lambda x: (x == 'No').sum())
         ).reset_index()
-    else:
-        df_display = pd.DataFrame()
+        
+        for _, row in grouped.iterrows():
+            name = row['Name']
+            p_qty = pending_map.get(name, 0)
+            
+            # 淨可用 = 物理可用 - 預訂
+            net_avail = row['Physical_Avail'] - p_qty
+            if net_avail < 0: net_avail = 0 
+            
+            final_data.append({
+                'Name': name,
+                'Brand': row['Brand'],
+                'Type': row['Type'],
+                'Total_Qty': row['Total_Qty'],
+                'Physical_Avail': row['Physical_Avail'],
+                'Loaned_Qty': row['Physical_Loaned'],
+                'Pending_Qty': p_qty,
+                'Net_Avail_Qty': net_avail
+            })
+            
+            total_assets += row['Total_Qty']
+            physical_loaned_total += row['Physical_Loaned']
+
+    # 計算頂部卡片數據
+    # 顯示的 Loaned = 物理借出 + 正在 Pending
+    display_loaned = physical_loaned_total + total_pending_count
+    # 顯示的 Available = 總數 - (物理借出 + Pending)
+    display_avail = total_assets - display_loaned
+    if display_avail < 0: display_avail = 0
 
     types = fetch_types()
     brands = fetch_brands(cat_filter)
 
     return render_template('dashboard.html', 
-                           data=df_display.to_dict(orient='records'),
-                           total=total, avail=avail, loaned=loaned,
+                           data=final_data,
+                           total=total_assets, 
+                           avail=display_avail, 
+                           loaned=display_loaned,
                            types=types, brands=brands,
                            curr_cat=cat_filter, curr_type=type_filter, 
                            curr_brand=brand_filter, curr_status=status_filter)
@@ -249,16 +282,13 @@ def api_update_cart():
     type_ = data.get('type')
     qty = int(data.get('qty', 0))
     
-    if 'cart' not in session:
-        session['cart'] = {}
-    
+    if 'cart' not in session: session['cart'] = {}
     cart = session['cart']
     
     if qty > 0:
         cart[item_name] = {'name': item_name, 'brand': brand, 'type': type_, 'qty': qty}
     else:
-        if item_name in cart:
-            del cart[item_name]
+        if item_name in cart: del cart[item_name]
     
     session.modified = True
     return {'status': 'success', 'total_items': len(cart), 'cart': cart}
@@ -268,22 +298,19 @@ def api_clear_cart():
     session.pop('cart', None)
     return {'status': 'success'}
 
-# --- [Generate Request] 申請單生成與處理 ---
+# --- Generate Request ---
 @app.route('/generate_request', methods=['POST'])
 def generate_request():
-    # 1. 取得日期與時間
     loan_date = request.form.get('expected_loan_date')
     loan_time = request.form.get('expected_loan_time')
     return_date = request.form.get('expected_return_date')
     return_time = request.form.get('expected_return_time')
     
-    # 2. 檢查購物車
     cart = session.get('cart', {})
     if not cart:
-        flash('Your request list is empty. Please add items first.', 'warning')
+        flash('Request list is empty.', 'warning')
         return redirect(url_for('dashboard'))
     
-    # 3. 檢查必填欄位
     if not (loan_date and loan_time and return_date and return_time):
         flash('Please fill in ALL Date and Time fields.', 'warning')
         return redirect(url_for('dashboard'))
@@ -292,7 +319,6 @@ def generate_request():
     request_id = str(random.randint(10000000, 99999999))
     create_date = date.today().strftime("%Y-%m-%d")
 
-    # 4. 存入 Request_Records (Pending 狀態)
     conn = get_db()
     items_json = json.dumps(request_items) 
     
@@ -302,29 +328,42 @@ def generate_request():
             VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?)
         """, (request_id, loan_date, loan_time, return_date, return_time, items_json, create_date))
         conn.commit()
-    except sqlite3.OperationalError:
-        flash("Error: Database missing 'Request_Records' table. Please run update_db_v3.py.", "danger")
     except Exception as e:
         flash(f'Error saving request: {e}', 'danger')
 
-    # 5. 發送 Email (非同步或錯誤處理)
     loan_dt_str = f"{loan_date} {loan_time}"
     return_dt_str = f"{return_date} {return_time}"
     send_email_notification(request_id, loan_dt_str, return_dt_str, request_items)
 
-    # 6. 清空購物車
     session.pop('cart', None)
 
     return render_template('request_summary.html', 
                            request_id=request_id, 
                            create_date=create_date,
-                           loan_date=loan_date,
-                           loan_time=loan_time,
-                           return_date=return_date,
-                           return_time=return_time,
+                           loan_date=loan_date, loan_time=loan_time,
+                           return_date=return_date, return_time=return_time,
                            items=request_items)
 
-# --- Loan & Return (Staff Only) ---
+# --- [新功能] 處理 Pending 狀態 ---
+@app.route('/process_request/<request_id>/<action>')
+def process_request(request_id, action):
+    if 'user' not in session: return redirect(url_for('dashboard'))
+    
+    conn = get_db()
+    # Approve -> Processed (不再佔用 Pending 額度)
+    # Reject -> Rejected (不再佔用 Pending 額度)
+    new_status = 'Processed' if action == 'approve' else 'Rejected'
+    
+    try:
+        conn.execute("UPDATE Request_Records SET Status = ? WHERE Request_ID = ?", (new_status, request_id))
+        conn.commit()
+        flash(f'Request #{request_id} marked as {new_status}.', 'success')
+    except Exception as e:
+        flash(f'Error updating request: {e}', 'danger')
+        
+    return redirect(url_for('loan_forms'))
+
+# --- Loan & Return ---
 @app.route('/loan_return', methods=['GET', 'POST'])
 def loan_return():
     if 'user' not in session: 
@@ -344,20 +383,15 @@ def loan_return():
             form_number = request.form.get('loan_form_number')
             
             if not form_number:
-                flash('Error: Loan Form Number is required!', 'danger')
+                flash('Loan Form Number is required!', 'danger')
                 return redirect(url_for('loan_return', category=cat_filter, brand=brand_filter))
             
             if selected_ids:
                 for eid in selected_ids:
-                    # Update History
                     conn.execute("UPDATE Loan_History SET Availability = 'No', Loan_From = ?, Loan_Form_Number = ? WHERE Equipment_ID = ?", (loan_date, form_number, eid))
-                    # Record Transaction
-                    conn.execute("""
-                        INSERT INTO Loan_Transactions (Loan_Form_Number, Equipment_ID, Loan_Date, Status) 
-                        VALUES (?, ?, ?, 'Active')
-                    """, (form_number, eid, loan_date))
+                    conn.execute("INSERT INTO Loan_Transactions (Loan_Form_Number, Equipment_ID, Loan_Date, Status) VALUES (?, ?, ?, 'Active')", (form_number, eid, loan_date))
                 conn.commit()
-                flash(f'Success! {len(selected_ids)} items loaned under Form #{form_number}.', 'success')
+                flash(f'Success! {len(selected_ids)} items loaned.', 'success')
             else:
                  flash('Please select at least one item.', 'warning')
         
@@ -365,14 +399,8 @@ def loan_return():
             if selected_ids:
                 return_date = date.today()
                 for eid in selected_ids:
-                    # Update History
                     conn.execute("UPDATE Loan_History SET Availability = 'Yes', Loan_From = NULL, Loan_Form_Number = NULL WHERE Equipment_ID = ?", (eid,))
-                    # Update Transaction
-                    conn.execute("""
-                        UPDATE Loan_Transactions 
-                        SET Return_Date = ?, Status = 'Returned'
-                        WHERE Equipment_ID = ? AND Status = 'Active'
-                    """, (return_date, eid))
+                    conn.execute("UPDATE Loan_Transactions SET Return_Date = ?, Status = 'Returned' WHERE Equipment_ID = ? AND Status = 'Active'", (return_date, eid))
                 conn.commit()
                 flash(f'Success! {len(selected_ids)} items returned.', 'success')
             else:
@@ -386,43 +414,35 @@ def loan_return():
 
     return render_template('loan_return.html', avail=available_data, loaned=loaned_data, curr_cat=cat_filter, curr_brand=brand_filter, brands=brands)
 
-# --- Loan Forms Record (Pending + History) ---
+# --- Loan Forms ---
 @app.route('/loan_forms')
 def loan_forms():
     if 'user' not in session: return redirect(url_for('dashboard'))
-
     conn = get_db()
     
-    # Part 1: Pending Requests
     pending_forms = []
     try:
-        # 檢查 Request_Records 表是否存在
         df_pending = pd.read_sql_query("SELECT * FROM Request_Records WHERE Status = 'Pending' ORDER BY Created_At DESC", conn)
         if not df_pending.empty:
             for _, row in df_pending.iterrows():
-                items = json.loads(row['Items_Json'])
+                try:
+                    items_list = json.loads(row['Items_Json'])
+                except:
+                    items_list = []
                 pending_forms.append({
                     'id': row['Request_ID'],
                     'loan_dt': f"{row['Loan_Date']} {row['Loan_Time']}",
                     'return_dt': f"{row['Return_Date']} {row['Return_Time']}",
-                    'items': items,
-                    'count': sum(i['qty'] for i in items),
+                    'item_list': items_list,
+                    'count': sum(i['qty'] for i in items_list),
                     'status': 'Pending'
                 })
-    except Exception:
-        # 如果表不存在，忽略 Pending 部分
-        pass
+    except: pass
 
-    # Part 2: Active & History
     history_forms = {}
     try:
-        query = """
-        SELECT T.Loan_Form_Number, T.Loan_Date, T.Return_Date, T.Status, E.Name, E.Brand, E.Type, T.Equipment_ID
-        FROM Loan_Transactions T JOIN Equipment_List E ON T.Equipment_ID = E.Equipment_ID
-        ORDER BY T.Loan_Date DESC, T.Loan_Form_Number
-        """
+        query = "SELECT T.Loan_Form_Number, T.Loan_Date, T.Return_Date, T.Status, E.Name, E.Brand, E.Type, T.Equipment_ID FROM Loan_Transactions T JOIN Equipment_List E ON T.Equipment_ID = E.Equipment_ID ORDER BY T.Loan_Date DESC, T.Loan_Form_Number"
         df = pd.read_sql_query(query, conn)
-        
         if not df.empty:
             grouped = df.groupby(['Loan_Form_Number', 'Loan_Date'])
             for (form_num, loan_date), group in grouped:
@@ -431,65 +451,51 @@ def loan_forms():
                 history_forms[form_num] = {
                     'id': form_num,
                     'loan_dt': loan_date,
-                    'items': group.to_dict(orient='records'),
+                    'item_list': group.to_dict(orient='records'),
                     'count': len(group),
-                    'status': 'Complete' if is_complete else 'Active',
                     'is_complete': is_complete
                 }
-    except Exception:
-        pass
+    except: pass
     
     return render_template('loan_forms.html', pending=pending_forms, history=history_forms)
 
-# --- 圖片上傳 (50x50) ---
+# --- Upload Images ---
 @app.route('/upload_images', methods=['GET', 'POST'])
 def upload_images():
     if 'user' not in session: return redirect(url_for('dashboard'))
-    
     brands = fetch_brands('ALL')
     categories = ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod', 'Others']
-
     if request.method == 'POST':
         upload_type = request.form.get('upload_type')
         target_name = request.form.get('target_name')
         file = request.files['image_file']
-
         if file and target_name:
             try:
                 img = Image.open(file)
                 img = img.resize((50, 50), Image.Resampling.LANCZOS)
-                
                 prefix = "cat" if upload_type == "category" else "brand"
                 filename = f"{prefix}_{target_name}.png"
-                
-                save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                img.save(save_path)
-                
-                flash(f'Image for {target_name} uploaded and resized (50x50px)!', 'success')
+                img.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                flash(f'Image for {target_name} uploaded!', 'success')
             except Exception as e:
-                flash(f'Error processing image: {str(e)}', 'danger')
-        
+                flash(f'Error: {e}', 'danger')
         return redirect(url_for('upload_images'))
-
     return render_template('upload_images.html', brands=brands, categories=categories)
 
-# --- 資料庫管理 ---
+# --- DB Manage ---
 @app.route('/db_manage', methods=['GET', 'POST'])
 def db_manage():
     if 'user' not in session: return redirect(url_for('dashboard'))
     conn = get_db()
-    
     if request.method == 'POST' and 'delete_id' in request.form:
         delete_id = request.form.get('delete_id')
         try:
             conn.execute("DELETE FROM Loan_History WHERE Equipment_ID = ?", (delete_id,))
             conn.execute("DELETE FROM Equipment_List WHERE Equipment_ID = ?", (delete_id,))
             conn.commit()
-            flash(f'Item {delete_id} deleted successfully.', 'success')
-        except Exception as e:
-            flash(f'Error deleting: {e}', 'danger')
+            flash('Deleted successfully.', 'success')
+        except Exception as e: flash(f'Error: {e}', 'danger')
         return redirect(url_for('db_manage'))
-
     if request.method == 'POST' and 'add_item' in request.form:
         new_id = request.form.get('new_id')
         name = request.form.get('name')
@@ -497,30 +503,15 @@ def db_manage():
         type_ = request.form.get('type')
         category = request.form.get('category')
         qty = request.form.get('qty', 1)
-        
         try:
-            conn.execute("""
-                INSERT INTO Equipment_List (Equipment_ID, Name, Brand, Type, Category, Qty, item_created)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (new_id, name, brand, type_, category, qty, date.today()))
-            
-            conn.execute("""
-                INSERT INTO Loan_History (Equipment_ID, Availability)
-                VALUES (?, 'Yes')
-            """, (new_id,))
-            
+            conn.execute("INSERT INTO Equipment_List VALUES (?, ?, ?, ?, ?, ?, ?)", (new_id, name, brand, type_, category, qty, date.today()))
+            conn.execute("INSERT INTO Loan_History VALUES (?, 'Yes', NULL, NULL)", (new_id,))
             conn.commit()
-            flash(f'Item {new_id} added successfully!', 'success')
-        except sqlite3.IntegrityError:
-            flash(f'Error: ID {new_id} already exists!', 'danger')
-        except Exception as e:
-            flash(f'Error adding item: {e}', 'danger')
+            flash('Added successfully!', 'success')
+        except Exception as e: flash(f'Error: {e}', 'danger')
         return redirect(url_for('db_manage'))
-
     df = pd.read_sql_query("SELECT * FROM Equipment_List ORDER BY item_created DESC", conn)
-    existing_brands = fetch_brands('ALL')
-    existing_types = fetch_types()
-    return render_template('db_manage.html', items=df.to_dict(orient='records'), brands=existing_brands, types=existing_types)
+    return render_template('db_manage.html', items=df.to_dict(orient='records'), brands=fetch_brands('ALL'), types=fetch_types())
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

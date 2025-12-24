@@ -3,11 +3,10 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>📂 Loan Forms Record</h2>
-    <!-- 連結到一般借還頁面 -->
     <a href="{{ url_for('loan_return') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Manual Loan</a>
 </div>
 
-<!-- PART 1: Pending Requests (網上申請單) -->
+<!-- PART 1: Pending Requests -->
 {% if pending %}
 <h5 class="text-warning mb-3"><i class="fas fa-hourglass-half me-2"></i>Pending Requests</h5>
 <div class="row mb-5">
@@ -29,10 +28,9 @@
                         <strong>{{ form.return_dt }}</strong>
                     </div>
                 </div>
-                
                 <div class="bg-light p-2 rounded border" style="max-height: 120px; overflow-y: auto;">
                     <ul class="list-unstyled mb-0 small">
-                        {% for item in form.items %}
+                        {% for item in form.item_list %}
                         <li class="d-flex justify-content-between border-bottom py-1">
                             <span>{{ item.name }}</span>
                             <span class="fw-bold">x {{ item.qty }}</span>
@@ -41,8 +39,18 @@
                     </ul>
                 </div>
             </div>
-            <div class="card-footer bg-white text-end border-top-0">
+            <div class="card-footer bg-white text-end border-top-0 d-flex justify-content-between align-items-center">
                 <small class="text-muted">Total Items: {{ form.count }}</small>
+                <div>
+                    <a href="{{ url_for('process_request', request_id=form.id, action='reject') }}" 
+                       class="btn btn-sm btn-outline-danger" onclick="return confirm('Reject this request?');">
+                       <i class="fas fa-times"></i>
+                    </a>
+                    <a href="{{ url_for('process_request', request_id=form.id, action='approve') }}" 
+                       class="btn btn-sm btn-success" title="Mark as Processed">
+                       <i class="fas fa-check"></i> Done
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -51,17 +59,13 @@
 <hr>
 {% endif %}
 
-
-<!-- PART 2: Loan History (已借出/已歸還) -->
+<!-- PART 2: Loan History -->
 <h5 class="text-secondary mb-3"><i class="fas fa-history me-2"></i>Loan History</h5>
-
 {% if history %}
     <div class="row">
         {% for form_num, details in history.items() %}
         <div class="col-md-6 mb-4">
-            <!-- 依據是否完成改變卡片邊框顏色 -->
             <div class="card h-100 shadow-sm {% if details.is_complete %}border-success{% else %}border-primary{% endif %}">
-                
                 <div class="card-header bg-white d-flex justify-content-between align-items-center pt-3">
                     <div>
                         <h5 class="mb-0 fw-bold">
@@ -74,14 +78,12 @@
                         </h5>
                         <small class="text-muted">Loan Date: {{ details.loan_dt }}</small>
                     </div>
-                    
                     {% if details.is_complete %}
                         <span class="badge bg-success">Complete</span>
                     {% else %}
                         <span class="badge bg-primary">Active</span>
                     {% endif %}
                 </div>
-
                 <div class="card-body p-0">
                     <table class="table table-sm table-striped mb-0" style="font-size: 0.9rem;">
                         <thead class="table-light">
@@ -92,12 +94,9 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in details.items %}
+                            {% for item in details.item_list %}
                             <tr>
-                                <td class="ps-3">
-                                    <strong>{{ item.Name }}</strong>
-                                    <br><small class="text-muted">{{ item.Brand }}</small>
-                                </td>
+                                <td class="ps-3"><strong>{{ item.Name }}</strong><br><small class="text-muted">{{ item.Brand }}</small></td>
                                 <td><span class="text-muted">{{ item.Equipment_ID }}</span></td>
                                 <td>
                                     {% if item.Status == 'Returned' %}
@@ -111,7 +110,6 @@
                         </tbody>
                     </table>
                 </div>
-                
                 <div class="card-footer bg-light text-end">
                     <small class="text-muted">Total Count: {{ details.count }}</small>
                 </div>
@@ -123,9 +121,7 @@
     {% if not pending %}
     <div class="alert alert-info text-center py-5">
         <h4>No loan history found.</h4>
-        <p>No pending requests and no active/history loans.</p>
     </div>
     {% endif %}
 {% endif %}
-
 {% endblock %}
