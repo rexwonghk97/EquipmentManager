@@ -43,19 +43,21 @@
 
     <!-- [新功能] 顯示借還日期 -->
     <div class="row mb-4">
-        <div class="col-6">
-            <div class="date-box">
-                <small class="text-muted d-block">EXPECTED LOAN DATE</small>
-                <strong class="fs-5">{{ loan_date }}</strong>
-            </div>
-        </div>
-        <div class="col-6">
-            <div class="date-box">
-                <small class="text-muted d-block">EXPECTED RETURN DATE</small>
-                <strong class="fs-5">{{ return_date }}</strong>
-            </div>
+    <div class="col-6">
+        <div class="date-box">
+            <small class="text-muted d-block">EXPECTED LOAN</small>
+            <!-- [修改] 顯示日期 + 時間 -->
+            <strong class="fs-5">{{ loan_date }} <span class="text-primary">{{ loan_time }}</span></strong>
         </div>
     </div>
+    <div class="col-6">
+        <div class="date-box">
+            <small class="text-muted d-block">EXPECTED RETURN</small>
+            <!-- [修改] 顯示日期 + 時間 -->
+            <strong class="fs-5">{{ return_date }} <span class="text-primary">{{ return_time }}</span></strong>
+        </div>
+    </div>
+</div>
 
     <div class="mb-4">
         <h5>Requested Items List</h5>
