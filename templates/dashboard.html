@@ -74,42 +74,40 @@
 
 <h2>🔎 Equipment Inventory</h2>
 
-<!-- 1. Metrics Row (頂部統計卡片) -->
 <div class="row mb-4">
-    <div class="col-md-4">
-        <div class="metric-card d-flex align-items-center justify-content-between">
-            <div><small class="text-muted">TOTAL ASSETS</small><h2 class="mb-0">{{ total }}</h2></div>
+    
+    <!-- 1. 左側：垂直數據卡片 (取代原本的圖表) -->
+    <div class="col-md-3">
+        <!-- Total Assets -->
+        <div class="metric-card d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <small class="text-muted fw-bold">TOTAL ASSETS</small>
+                <h2 class="mb-0 mt-1">{{ total }}</h2>
+            </div>
             <div class="fs-1 text-primary">📦</div>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="metric-card d-flex align-items-center justify-content-between">
-            <div><small class="text-muted">AVAILABLE</small><h2 class="mb-0 text-success">{{ avail }}</h2></div>
+
+        <!-- Available -->
+        <div class="metric-card d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <small class="text-muted fw-bold">AVAILABLE</small>
+                <h2 class="mb-0 mt-1 text-success">{{ avail }}</h2>
+            </div>
             <div class="fs-1 text-success">✅</div>
         </div>
-    </div>
-    <div class="col-md-4">
+
+        <!-- Unavailable -->
         <div class="metric-card d-flex align-items-center justify-content-between">
-            <div><small class="text-muted">UNAVAILABLE</small><h2 class="mb-0 text-warning">{{ loaned }}</h2></div>
+            <div>
+                <small class="text-muted fw-bold">UNAVAILABLE</small>
+                <h2 class="mb-0 mt-1 text-warning">{{ loaned }}</h2>
+            </div>
             <div class="fs-1 text-warning">⏳</div>
         </div>
     </div>
-</div>
 
-<!-- 2. Chart & Categories (中部圖表與分類) -->
-<div class="row mb-4">
-    <!-- 左邊圖表 -->
-    <div class="col-md-4">
-        <div class="card p-3 h-100">
-            <h5>Status Distribution</h5>
-            <div class="d-flex align-items-center justify-content-center h-100">
-                <canvas id="statusChart" style="max-height: 250px;"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- 右邊：分類瀏覽區 -->
-    <div class="col-md-8">
+    <!-- 2. 右側：分類瀏覽區 (變寬為 col-md-9) -->
+    <div class="col-md-9">
         <div class="card p-3 h-100">
             
             <!-- Category 選擇區 -->
@@ -126,7 +124,7 @@
                 <!-- 嘗試取得圖片路徑 -->
                 {% set icon_url = get_icon_path('cat', cat) %}
                 
-                <div class="col-4 col-md-2">
+                <div class="col-4 col-md-2"> <!-- 這裡可以維持 col-md-2，因為現在右邊空間變大了，會自動排列成一行6個 -->
                     <a href="{{ url_for('dashboard', category=cat) }}" 
                        class="btn w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center {% if curr_cat == cat %}btn-primary{% else %}btn-outline-secondary{% endif %}">
                         
@@ -190,7 +188,7 @@
         <input type="hidden" name="category" value="{{ curr_cat }}">
         <input type="hidden" name="brand" value="{{ curr_brand }}">
         
-        <!-- [新增] Search Bar -->
+        <!-- Search Bar -->
         <div class="col-md-4">
             <div class="input-group">
                 <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
@@ -235,7 +233,7 @@
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
-                    <th width="10%">Image</th> <!-- 新增圖片欄位 -->
+                    <th width="10%">Image</th>
                     <th width="20%">Brand / Type</th>
                     <th width="25%">Name</th>
                     <th width="10%">Total</th>
@@ -271,7 +269,6 @@
                     <td><span class="badge bg-secondary rounded-pill">{{ row['Total_Qty'] }}</span></td>
                     <td>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <!-- 顯示庫存狀態：Avail (綠), Pending (藍), Loaned (黃) -->
                             <span class="badge bg-success-subtle text-success border border-success">Avail: {{ row['Net_Avail_Qty'] }}</span>
                             
                             {% if row['Pending_Qty'] > 0 %}
@@ -284,7 +281,6 @@
                         </div>
                     </td>
                     <td class="text-center">
-                        <!-- 加入購物車按鈕 -->
                         {% if row['Net_Avail_Qty'] > 0 %}
                         <div class="input-group justify-content-center" style="width: 120px; margin: 0 auto;">
                             <input type="number" id="qty-{{ loop.index }}" class="form-control qty-input" min="0" max="{{ row['Net_Avail_Qty'] }}" value="0">
@@ -325,7 +321,7 @@
     </div>
 </div>
 
-<!-- 5. Checkout Modal (確認視窗 + 日期時間輸入) -->
+<!-- 5. Checkout Modal -->
 <div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <form action="{{ url_for('generate_request') }}" method="POST" target="_blank">
@@ -335,8 +331,6 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    
-                    <!-- 日期時間輸入 -->
                     <div class="row mb-4 bg-light p-3 rounded mx-1 border">
                         <div class="col-md-6 mb-3">
                             <label class="fw-bold mb-1 text-primary">Expected Loan <span class="text-danger">*</span></label>
@@ -353,7 +347,6 @@
                             </div>
                         </div>
                     </div>
-
                     <h6 class="mb-3 border-bottom pb-2">Selected Equipment</h6>
                     <div id="modalCartContent">
                         <p class="text-center text-muted">Loading...</p>
@@ -371,22 +364,8 @@
 <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Chart
-    const ctx = document.getElementById('statusChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Available', 'Unavailable'],
-            datasets: [{
-                data: [{{ avail }}, {{ loaned }}],
-                backgroundColor: ['#198754', '#ffc107'],
-                borderWidth: 0
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-    });
+    // Chart code removed as per request
 
-    // Cart Logic
     document.addEventListener('DOMContentLoaded', function() {
         {% if session.get('cart') %}
             updateCartUI({{ session.get('cart')|length }});
