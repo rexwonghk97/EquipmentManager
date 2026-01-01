@@ -4,6 +4,7 @@
 
 <!-- 自定義 CSS -->
 <style>
+    /* Brand Card 樣式 */
     .brand-card {
         transition: transform 0.2s, box-shadow 0.2s;
         cursor: pointer;
@@ -37,6 +38,11 @@
         margin-bottom: 5px;
         color: #adb5bd;
     }
+    .brand-card.active .brand-img-placeholder {
+        color: #0d6efd;
+    }
+    
+    /* 購物車底部懸浮列 */
     .cart-bar {
         position: fixed;
         bottom: 0;
@@ -50,19 +56,25 @@
         box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
         animation: slideUp 0.3s ease-out;
     }
+    
     @media (min-width: 768px) {
-        .cart-bar { width: calc(100% - 16.66667%); left: 16.66667%; }
+        .cart-bar {
+            width: calc(100% - 16.66667%); /* 扣除 Sidebar col-md-2 的寬度 */
+            left: 16.66667%;
+        }
     }
+
     @keyframes slideUp {
         from { transform: translateY(100%); }
         to { transform: translateY(0); }
     }
+    
     .qty-input { width: 60px; text-align: center; }
 </style>
 
 <h2>🔎 Equipment Inventory</h2>
 
-<!-- Metrics -->
+<!-- 1. Metrics Row (頂部統計卡片) -->
 <div class="row mb-4">
     <div class="col-md-4">
         <div class="metric-card d-flex align-items-center justify-content-between">
@@ -84,8 +96,9 @@
     </div>
 </div>
 
-<!-- Chart & Category -->
+<!-- 2. Chart & Categories (中部圖表與分類) -->
 <div class="row mb-4">
+    <!-- 左邊圖表 -->
     <div class="col-md-4">
         <div class="card p-3 h-100">
             <h5>Status Distribution</h5>
@@ -95,8 +108,11 @@
         </div>
     </div>
 
+    <!-- 右邊：分類瀏覽區 -->
     <div class="col-md-8">
         <div class="card p-3 h-100">
+            
+            <!-- Category 選擇區 -->
             <div class="d-flex justify-content-between align-items-center mb-2">
                 <h5>📂 Browse by Category</h5>
                 {% if curr_cat != 'ALL' %}
@@ -106,35 +122,47 @@
 
             <div class="row g-2">
                 {% for cat in ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod', 'Others'] %}
+                
+                <!-- 嘗試取得圖片路徑 -->
                 {% set icon_url = get_icon_path('cat', cat) %}
+                
                 <div class="col-4 col-md-2">
                     <a href="{{ url_for('dashboard', category=cat) }}" 
                        class="btn w-100 h-100 py-3 d-flex flex-column align-items-center justify-content-center {% if curr_cat == cat %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                        
                         {% if icon_url %}
                             <img src="{{ icon_url }}" alt="{{ cat }}" style="width: 50px; height: 50px; object-fit: contain; margin-bottom: 4px;">
                         {% else %}
                             <i class="fas fa-tag mb-2" style="font-size: 24px;"></i> 
                         {% endif %}
+                        
                         <small style="line-height: 1.1;">{{ cat }}</small>
                     </a>
                 </div>
                 {% endfor %}
             </div>
 
+            <!-- Brand 選擇區 -->
             {% if curr_cat != 'ALL' %}
                 <hr>
                 <h6 class="text-muted mb-3">Select Brand in <b>{{ curr_cat }}</b>:</h6>
+                
                 <div class="row g-3">
                     <div class="col-6 col-sm-4 col-md-3">
-                        <a href="{{ url_for('dashboard', category=curr_cat, brand='ALL') }}" class="brand-card {% if curr_brand == 'ALL' %}active{% endif %}">
+                        <a href="{{ url_for('dashboard', category=curr_cat, brand='ALL') }}" 
+                           class="brand-card {% if curr_brand == 'ALL' %}active{% endif %}">
                             <div class="brand-img-placeholder"><i class="fas fa-th-large fa-2x"></i></div>
                             <div>All Brands</div>
                         </a>
                     </div>
+
                     {% for b in brands %}
+                    
                     {% set brand_icon_url = get_icon_path('brand', b) %}
+                    
                     <div class="col-6 col-sm-4 col-md-3">
-                        <a href="{{ url_for('dashboard', category=curr_cat, brand=b) }}" class="brand-card {% if curr_brand == b %}active{% endif %}">
+                        <a href="{{ url_for('dashboard', category=curr_cat, brand=b) }}" 
+                           class="brand-card {% if curr_brand == b %}active{% endif %}">
                             <div class="brand-img-placeholder">
                                 {% if brand_icon_url %}
                                     <img src="{{ brand_icon_url }}" style="width: 50px; height: 50px; object-fit: contain;">
@@ -148,16 +176,32 @@
                     {% endfor %}
                 </div>
             {% endif %}
+
         </div>
     </div>
 </div>
 
-<!-- Table -->
+<!-- 3. Bottom Section: Items Table & Search -->
 <div class="card p-3 mb-5">
+    
+    <!-- Filter & Search Form -->
     <form method="GET" action="{{ url_for('dashboard') }}" class="row g-3 mb-4 border-bottom pb-3">
+        <!-- 保持目前的 Category 和 Brand 狀態 -->
         <input type="hidden" name="category" value="{{ curr_cat }}">
         <input type="hidden" name="brand" value="{{ curr_brand }}">
         
+        <!-- [新增] Search Bar -->
+        <div class="col-md-4">
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                <input type="text" name="search" class="form-control" placeholder="Search item, brand or ID..." value="{{ curr_search }}">
+                <!-- 如果有搜尋字串，顯示清除按鈕 -->
+                {% if curr_search %}
+                    <a href="{{ url_for('dashboard', category=curr_cat, brand=curr_brand) }}" class="btn btn-outline-secondary" title="Clear Search">X</a>
+                {% endif %}
+            </div>
+        </div>
+
         <div class="col-md-3">
             <select name="type" class="form-select" onchange="this.form.submit()">
                 <option value="ALL" {% if curr_type == 'ALL' %}selected{% endif %}>All Types</option>
@@ -175,25 +219,50 @@
             </select>
         </div>
         
-        <div class="col-md-6 d-flex align-items-end justify-content-end">
-             <span class="text-muted small">Displaying <b>{{ data|length }}</b> items</span>
+        <div class="col-md-2 d-flex align-items-end justify-content-end">
+             <button type="submit" class="btn btn-primary w-100">Search</button>
+        </div>
+        
+        <div class="col-12 text-end mt-2">
+             <span class="text-muted small">
+                 Displaying <b>{{ data|length }}</b> items
+             </span>
         </div>
     </form>
 
+    <!-- Table -->
     <div class="table-responsive">
         <table class="table table-hover align-middle">
             <thead class="table-light">
                 <tr>
+                    <th width="10%">Image</th> <!-- 新增圖片欄位 -->
                     <th width="20%">Brand / Type</th>
-                    <th width="30%">Name</th>
+                    <th width="25%">Name</th>
                     <th width="10%">Total</th>
                     <th width="20%">Status</th>
-                    <th width="20%" class="text-center">Select</th>
+                    <th width="15%" class="text-center">Select</th>
                 </tr>
             </thead>
             <tbody>
                 {% for row in data %}
+                
+                <!-- 決定圖片：先找 Item 圖，沒有找 Category 圖 -->
+                {% set item_img = get_icon_path('item', row['Rep_ID']) %}
+                {% set cat_img = get_icon_path('cat', row['Category']) %}
+                
                 <tr>
+                    <!-- 圖片顯示 -->
+                    <td>
+                        <div style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: #f8f9fa; border-radius: 5px; overflow: hidden;">
+                            {% if item_img %}
+                                <img src="{{ item_img }}" style="width: 100%; height: 100%; object-fit: contain;">
+                            {% elif cat_img %}
+                                <img src="{{ cat_img }}" style="width: 80%; height: 80%; object-fit: contain; opacity: 0.5;">
+                            {% else %}
+                                <i class="fas fa-cube text-muted"></i>
+                            {% endif %}
+                        </div>
+                    </td>
                     <td>
                         <span class="fw-bold text-secondary">{{ row['Brand'] }}</span><br>
                         <small class="text-muted">{{ row['Type'] }}</small>
@@ -202,20 +271,24 @@
                     <td><span class="badge bg-secondary rounded-pill">{{ row['Total_Qty'] }}</span></td>
                     <td>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <!-- 顯示庫存狀態：Avail (綠), Pending (藍), Loaned (黃) -->
                             <span class="badge bg-success-subtle text-success border border-success">Avail: {{ row['Net_Avail_Qty'] }}</span>
+                            
                             {% if row['Pending_Qty'] > 0 %}
                             <span class="badge bg-primary-subtle text-primary border border-primary">Pending: {{ row['Pending_Qty'] }}</span>
                             {% endif %}
+                            
                             {% if row['Loaned_Qty'] > 0 %}
                             <span class="badge bg-warning-subtle text-warning border border-warning">Loaned: {{ row['Loaned_Qty'] }}</span>
                             {% endif %}
                         </div>
                     </td>
                     <td class="text-center">
+                        <!-- 加入購物車按鈕 -->
                         {% if row['Net_Avail_Qty'] > 0 %}
-                        <div class="input-group justify-content-center" style="width: 150px; margin: 0 auto;">
+                        <div class="input-group justify-content-center" style="width: 120px; margin: 0 auto;">
                             <input type="number" id="qty-{{ loop.index }}" class="form-control qty-input" min="0" max="{{ row['Net_Avail_Qty'] }}" value="0">
-                            <button class="btn btn-outline-primary" type="button" 
+                            <button class="btn btn-outline-primary px-2" type="button" 
                                 onclick="addToCart('{{ row.Name }}', '{{ row.Brand }}', '{{ row.Type }}', 'qty-{{ loop.index }}')">
                                 <i class="fas fa-plus"></i>
                             </button>
@@ -226,14 +299,14 @@
                     </td>
                 </tr>
                 {% else %}
-                <tr><td colspan="5" class="text-center py-4 text-muted">No items found.</td></tr>
+                <tr><td colspan="6" class="text-center py-4 text-muted">No items found matching criteria.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Sticky Cart Bar -->
+<!-- 4. Sticky Cart Bar (底部懸浮) -->
 <div id="cartBar" class="cart-bar justify-content-between align-items-center">
     <div class="d-flex align-items-center">
         <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 40px; height: 40px;">
@@ -252,7 +325,7 @@
     </div>
 </div>
 
-<!-- Checkout Modal -->
+<!-- 5. Checkout Modal (確認視窗 + 日期時間輸入) -->
 <div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <form action="{{ url_for('generate_request') }}" method="POST" target="_blank">
@@ -262,22 +335,25 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
+                    
+                    <!-- 日期時間輸入 -->
                     <div class="row mb-4 bg-light p-3 rounded mx-1 border">
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold mb-1">Expected Loan <span class="text-danger">*</span></label>
+                            <label class="fw-bold mb-1 text-primary">Expected Loan <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <input type="date" name="expected_loan_date" class="form-control" required>
                                 <input type="time" name="expected_loan_time" class="form-control" required>
                             </div>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="fw-bold mb-1">Expected Return <span class="text-danger">*</span></label>
+                            <label class="fw-bold mb-1 text-primary">Expected Return <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <input type="date" name="expected_return_date" class="form-control" required>
                                 <input type="time" name="expected_return_time" class="form-control" required>
                             </div>
                         </div>
                     </div>
+
                     <h6 class="mb-3 border-bottom pb-2">Selected Equipment</h6>
                     <div id="modalCartContent">
                         <p class="text-center text-muted">Loading...</p>
@@ -292,8 +368,10 @@
     </div>
 </div>
 
+<!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    // Chart
     const ctx = document.getElementById('statusChart').getContext('2d');
     new Chart(ctx, {
         type: 'doughnut',
@@ -308,6 +386,7 @@
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
     });
 
+    // Cart Logic
     document.addEventListener('DOMContentLoaded', function() {
         {% if session.get('cart') %}
             updateCartUI({{ session.get('cart')|length }});
