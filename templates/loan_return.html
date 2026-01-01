@@ -2,13 +2,12 @@
 
 {% block content %}
 <style>
-    /* 複製 Dashboard 的 Brand Card 樣式 */
     .brand-card {
         transition: transform 0.2s, box-shadow 0.2s;
         cursor: pointer;
         border: 1px solid #e0e0e0;
         text-align: center;
-        padding: 10px; /* 稍微縮小一點 */
+        padding: 10px;
         background: #fff;
         border-radius: 8px;
         height: 100%;
@@ -16,23 +15,13 @@
         text-decoration: none;
         color: #333;
     }
-    .brand-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        border-color: #0d6efd;
-        color: #0d6efd;
-    }
-    .brand-card.active {
-        background-color: #e3f2fd;
-        border-color: #0d6efd;
-        color: #0d6efd;
-        font-weight: bold;
-    }
+    .brand-card:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); border-color: #0d6efd; color: #0d6efd; }
+    .brand-card.active { background-color: #e3f2fd; border-color: #0d6efd; color: #0d6efd; font-weight: bold; }
 </style>
 
 <h2>📑 Equipment Loan & Return</h2>
 
-<!-- 1. Filter Section (Category + Brand) -->
+<!-- Filter Section -->
 <div class="card p-3 mb-4">
     <div class="d-flex justify-content-between align-items-center mb-2">
         <h5>📂 Filter Equipment</h5>
@@ -53,68 +42,65 @@
         {% endfor %}
     </div>
 
-    <!-- Brand Selection (只有選了 Category 才顯示) -->
-    {% if curr_cat != 'ALL' %}
-        <hr>
-        <h6 class="text-muted small mb-2">Select Brand in <b>{{ curr_cat }}</b>:</h6>
-        <div class="row g-2">
-            <!-- All Brands -->
-            <div class="col-6 col-sm-3 col-md-2">
-                <a href="{{ url_for('loan_return', category=curr_cat, brand='ALL') }}" 
-                   class="brand-card {% if curr_brand == 'ALL' %}active{% endif %}">
-                    <small>All Brands</small>
-                </a>
-            </div>
-            <!-- Brand List -->
-            {% for b in brands %}
-            <div class="col-6 col-sm-3 col-md-2">
-                <a href="{{ url_for('loan_return', category=curr_cat, brand=b) }}" 
-                   class="brand-card {% if curr_brand == b %}active{% endif %}">
-                    <small>{{ b }}</small>
-                </a>
-            </div>
-            {% endfor %}
+    <!-- Search & Brand -->
+    <div class="row g-3">
+        <!-- [新功能] Search Bar -->
+        <div class="col-md-4">
+            <form method="GET" action="{{ url_for('loan_return') }}">
+                <input type="hidden" name="category" value="{{ curr_cat }}">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" placeholder="Search ID or Name..." value="{{ curr_search }}">
+                    <button class="btn btn-primary" type="submit">Search</button>
+                </div>
+            </form>
         </div>
-    {% endif %}
+
+        <!-- Brand Selection -->
+        {% if curr_cat != 'ALL' %}
+        <div class="col-md-8">
+            <div class="row g-2">
+                <div class="col-6 col-sm-3 col-md-2">
+                    <a href="{{ url_for('loan_return', category=curr_cat, brand='ALL') }}" class="brand-card {% if curr_brand == 'ALL' %}active{% endif %}"><small>All Brands</small></a>
+                </div>
+                {% for b in brands %}
+                <div class="col-6 col-sm-3 col-md-2">
+                    <a href="{{ url_for('loan_return', category=curr_cat, brand=b) }}" class="brand-card {% if curr_brand == b %}active{% endif %}"><small>{{ b }}</small></a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
 </div>
 
 <ul class="nav nav-tabs mb-4" id="myTab" role="tablist">
-    <li class="nav-item">
-        <button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan" type="button">📤 Loan Out</button>
-    </li>
-    <li class="nav-item">
-        <button class="nav-link" id="return-tab" data-bs-toggle="tab" data-bs-target="#return" type="button">📥 Return Item</button>
-    </li>
+    <li class="nav-item"><button class="nav-link active" id="loan-tab" data-bs-toggle="tab" data-bs-target="#loan" type="button">📤 Loan Out</button></li>
+    <li class="nav-item"><button class="nav-link" id="return-tab" data-bs-toggle="tab" data-bs-target="#return" type="button">📥 Return Item</button></li>
 </ul>
 
 <div class="tab-content" id="myTabContent">
     <!-- Loan Tab -->
     <div class="tab-pane fade show active" id="loan" role="tabpanel">
-        <form method="POST" action="{{ url_for('loan_return', category=curr_cat, brand=curr_brand) }}">
+        <form method="POST" action="{{ url_for('loan_return', category=curr_cat, brand=curr_brand, search=curr_search) }}">
             <input type="hidden" name="action" value="loan">
             
             <div class="row mb-3">
-                <!-- [新增] Loan Form Number -->
                 <div class="col-md-6">
                     <label class="fw-bold">Loan Form Number <span class="text-danger">*</span></label>
                     <input type="text" name="loan_form_number" class="form-control" placeholder="e.g. L-2023-001" required>
                 </div>
-                <!-- Loan Date -->
                 <div class="col-md-6">
                     <label class="fw-bold">Loan Start Date <span class="text-danger">*</span></label>
                     <input type="date" name="loan_date" class="form-control" value="{{ date_today }}" required>
                 </div>
             </div>
             
-            <div class="text-end text-muted small mb-2">
-                Showing available items in <b>{{ curr_cat }}</b> {% if curr_brand != 'ALL' %}/ <b>{{ curr_brand }}</b>{% endif %}
-            </div>
-
             <div class="card p-0 mb-3" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0 align-middle">
                     <thead class="table-light sticky-top">
                         <tr>
                             <th width="50">Select</th>
+                            <th width="60">Img</th>
                             <th>Equipment Name (ID)</th>
                             <th>Brand / Type</th>
                             <th>Qty</th>
@@ -122,16 +108,30 @@
                     </thead>
                     <tbody>
                         {% for item in avail %}
+                        
+                        {% set item_img = get_icon_path('item', item['ID']) %}
+                        {% set cat_img = get_icon_path('cat', item['Category']) %}
+
                         <tr>
                             <td class="text-center">
                                 <input class="form-check-input" type="checkbox" name="equipment_ids" value="{{ item['ID'] }}">
+                            </td>
+                            <!-- 顯示圖片 -->
+                            <td>
+                                <div style="width: 40px; height: 40px; background: #eee; border-radius: 4px; overflow: hidden;">
+                                    {% if item_img %}
+                                        <img src="{{ item_img }}" style="width: 100%; height: 100%; object-fit: contain;">
+                                    {% elif cat_img %}
+                                        <img src="{{ cat_img }}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.5;">
+                                    {% endif %}
+                                </div>
                             </td>
                             <td><strong>{{ item['Name'] }}</strong> <br><small class="text-muted">{{ item['ID'] }}</small></td>
                             <td>{{ item['Brand'] }} / {{ item['Type'] }}</td>
                             <td>{{ item['Qty'] }}</td>
                         </tr>
                         {% else %}
-                        <tr><td colspan="4" class="text-center py-4 text-muted">No items found matching criteria.</td></tr>
+                        <tr><td colspan="5" class="text-center py-4 text-muted">No items found.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -140,35 +140,42 @@
         </form>
     </div>
 
-    <!-- Return Tab (保持不變，或加入單號顯示) -->
+    <!-- Return Tab -->
     <div class="tab-pane fade" id="return" role="tabpanel">
-        <form method="POST" action="{{ url_for('loan_return', category=curr_cat, brand=curr_brand) }}">
+        <form method="POST" action="{{ url_for('loan_return', category=curr_cat, brand=curr_brand, search=curr_search) }}">
             <input type="hidden" name="action" value="return">
             
-            <div class="text-end text-muted small mb-2">
-                Showing unavailable items in <b>{{ curr_cat }}</b>
-            </div>
-
             <div class="card p-0 mb-3" style="max-height: 400px; overflow-y: auto;">
-                <table class="table table-hover mb-0">
+                <table class="table table-hover mb-0 align-middle">
                     <thead class="table-light sticky-top">
                         <tr>
                             <th width="50">Select</th>
+                            <th width="60">Img</th>
                             <th>Equipment Name (ID)</th>
-                            <th>Brand / Type</th>
-                            <th>Loan Info</th> <!-- 修改標題 -->
+                            <th>Loan Info</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in loaned %}
+                        
+                        {% set item_img = get_icon_path('item', item['ID']) %}
+                        {% set cat_img = get_icon_path('cat', item['Category']) %}
+
                         <tr>
                             <td class="text-center">
                                 <input class="form-check-input" type="checkbox" name="equipment_ids" value="{{ item['ID'] }}">
                             </td>
-                            <td><strong>{{ item['Name'] }}</strong> <br><small class="text-muted">{{ item['ID'] }}</small></td>
-                            <td>{{ item['Brand'] }} / {{ item['Type'] }}</td>
                             <td>
-                                <!-- 顯示借出日期和單號 -->
+                                <div style="width: 40px; height: 40px; background: #eee; border-radius: 4px; overflow: hidden;">
+                                    {% if item_img %}
+                                        <img src="{{ item_img }}" style="width: 100%; height: 100%; object-fit: contain;">
+                                    {% elif cat_img %}
+                                        <img src="{{ cat_img }}" style="width: 100%; height: 100%; object-fit: contain; opacity: 0.5;">
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td><strong>{{ item['Name'] }}</strong> <br><small class="text-muted">{{ item['ID'] }}</small></td>
+                            <td>
                                 <span class="badge bg-warning text-dark">{{ item['Loan_Start'] }}</span>
                                 {% if item['Loan_Form_Number'] %}
                                     <br><small class="text-muted">Form: {{ item['Loan_Form_Number'] }}</small>
