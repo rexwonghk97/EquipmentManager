@@ -522,12 +522,26 @@ def db_manage():
         type_ = request.form.get('type')
         category = request.form.get('category')
         qty = request.form.get('qty', 1)
+        remarks = request.form.get('remarks', '') # [新增] 取得 Remarks，沒填則為空
+        
         try:
-            conn.execute("INSERT INTO Equipment_List VALUES (?, ?, ?, ?, ?, ?, ?)", (new_id, name, brand, type_, category, qty, date.today()))
-            conn.execute("INSERT INTO Loan_History VALUES (?, 'Yes', NULL, NULL)", (new_id,))
+            # [修改] 使用明確的欄位名稱 (Explicit Columns) 來插入資料，包含 Remarks
+            conn.execute("""
+                INSERT INTO Equipment_List (Equipment_ID, Name, Brand, Type, Category, Remarks, Qty, item_created)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (new_id, name, brand, type_, category, remarks, qty, date.today()))
+            
+            conn.execute("""
+                INSERT INTO Loan_History (Equipment_ID, Availability)
+                VALUES (?, 'Yes')
+            """, (new_id,))
+            
             conn.commit()
-            flash('Added successfully!', 'success')
-        except Exception as e: flash(f'Error: {e}', 'danger')
+            flash(f'Item {new_id} added successfully!', 'success')
+        except sqlite3.IntegrityError:
+            flash(f'Error: ID {new_id} already exists!', 'danger')
+        except Exception as e:
+            flash(f'Error adding item: {e}', 'danger')
         return redirect(url_for('db_manage'))
     df = pd.read_sql_query("SELECT * FROM Equipment_List ORDER BY item_created DESC", conn)
     return render_template('db_manage.html', items=df.to_dict(orient='records'), brands=fetch_brands('ALL'), types=fetch_types())
