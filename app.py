@@ -17,9 +17,10 @@ DATABASE = 'daci_database.db'
 UPLOAD_FOLDER = 'static/icons'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
+# 確保圖片資料夾存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# --- 資料庫連線 ---
+# --- 1. 資料庫連線 ---
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -33,17 +34,21 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-# --- 輔助函數 ---
+# --- 2. 輔助函數 ---
 
+# Email 發送功能
 def send_email_notification(request_id, loan_dt, return_dt, items):
     sender_email = "your_email@gmail.com"
-    sender_password = "your_app_password"
+    sender_password = "your_app_password" # Google App Password
+    
+    # 收件人列表 (請填寫真實 Email)
     receiver_emails = ["abc@gmail.com"] 
 
     subject = f"New Equipment Request: #{request_id}"
+    
     msg = MIMEMultipart()
     msg['From'] = sender_email
-    msg['To'] = ", ".join(receiver_emails)
+    msg['To'] = ", ".join(receiver_emails) # 顯示用字串
     msg['Subject'] = subject
 
     items_html = "<ul>"
@@ -62,6 +67,7 @@ def send_email_notification(request_id, loan_dt, return_dt, items):
     <p>Status: <strong>Pending</strong></p>
     <p>Please login to DACI E.Manager to review.</p>
     """
+    
     msg.attach(MIMEText(body, 'html'))
 
     try:
@@ -69,18 +75,16 @@ def send_email_notification(request_id, loan_dt, return_dt, items):
         server.starttls()
         server.login(sender_email, sender_password)
         text = msg.as_string()
-        server.sendmail(sender_email, receiver_emails, text)
+        server.sendmail(sender_email, receiver_emails, text) # 傳送用 List
         server.quit()
-        print(f"✅ Email sent for #{request_id}")
+        print(f"✅ Email notification for #{request_id} sent successfully.")
     except Exception as e:
-        print(f"⚠️ Email failed: {e}")
+        print(f"⚠️ Email sending skipped/failed: {e}")
 
-# [修改] 圖片路徑輔助 (新增 item 支援)
+# 前端圖片路徑輔助
 @app.context_processor
 def utility_processor():
     def get_icon_path(prefix, name):
-        # prefix 可以是 'cat', 'brand', 或 'item'
-        # name 對於 item 來說就是 Equipment_ID
         filename = f"{prefix}_{name}.png"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         if os.path.exists(filepath):
@@ -88,9 +92,13 @@ def utility_processor():
         return None
     return dict(get_icon_path=get_icon_path)
 
+# 取得品牌列表
 def fetch_brands(category_filter='ALL'):
     conn = get_db()
-    known_categories = ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod']
+    known_categories = [
+        'Lights', 'Camera', 'Digital Tablet', 'Audio', 'MICs (Recording Studio)', 'VR Headset',
+        'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod'
+    ]
     try:
         if category_filter != 'ALL':
             if category_filter == 'Others':
@@ -117,13 +125,16 @@ def fetch_types():
     except:
         return []
 
-# [修改] 核心資料查詢 (加入 search_query)
+# 核心資料查詢 (含搜尋功能)
 def fetch_equipment_data(availability='All', equipment_type='ALL', category_filter='ALL', brand_filter='ALL', search_query=''):
     conn = get_db()
     query_conditions = []
     params = []
     
-    known_categories = ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod']
+    known_categories = [
+        'Lights', 'Camera', 'Digital Tablet', 'Audio', 'MICs (Recording Studio)', 'VR Headset',
+        'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod'
+    ]
 
     if availability != 'All':
         query_conditions.append('Loan_History.Availability = ?')
@@ -146,7 +157,7 @@ def fetch_equipment_data(availability='All', equipment_type='ALL', category_filt
         query_conditions.append("Equipment_List.Brand = ?")
         params.append(brand_filter)
 
-    # [新增] 搜尋邏輯 (Name, Brand, ID)
+    # [搜尋功能]
     if search_query:
         query_conditions.append("(Equipment_List.Name LIKE ? OR Equipment_List.Brand LIKE ? OR Equipment_List.Equipment_ID LIKE ?)")
         search_term = f"%{search_query}%"
@@ -162,6 +173,7 @@ def fetch_equipment_data(availability='All', equipment_type='ALL', category_filt
         Equipment_List.Name,
         Equipment_List.Brand,
         Equipment_List.Qty,
+        Equipment_List.Remarks,
         Loan_History.Availability,
         Loan_History.Loan_From AS Loan_Start,
         Loan_History.Loan_Form_Number
@@ -172,7 +184,7 @@ def fetch_equipment_data(availability='All', equipment_type='ALL', category_filt
     df = pd.read_sql_query(query, conn, params=params)
     return df
 
-# --- 路由 ---
+# --- 3. 路由 (Routes) ---
 
 @app.route('/')
 def index():
@@ -195,23 +207,24 @@ def logout():
     flash('Logged out successfully.', 'info')
     return redirect(url_for('dashboard'))
 
-# --- [修改] Dashboard (接收 search 參數) ---
+# --- Dashboard (含 Pending 計算) ---
 @app.route('/dashboard')
 def dashboard():
     cat_filter = request.args.get('category', 'ALL')
     type_filter = request.args.get('type', 'ALL')
     brand_filter = request.args.get('brand', 'ALL')
     status_filter = request.args.get('status', 'All')
-    search_query = request.args.get('search', '') # [新增]
+    search_query = request.args.get('search', '')
     
     status_map = {"All": "All", "Available Only": "Yes", "Unavailable Only": "No"}
     db_status = status_map.get(status_filter, "All")
 
     conn = get_db()
     
-    # 傳入 search_query
+    # 1. 取得物理庫存
     df_raw = fetch_equipment_data(db_status, type_filter, cat_filter, brand_filter, search_query)
     
+    # 2. 計算 Pending (被預訂) 數量
     pending_map = {} 
     total_pending_count = 0
     try:
@@ -229,16 +242,15 @@ def dashboard():
     except:
         pass 
 
+    # 3. 整合資料
     final_data = []
     total_assets = 0
     physical_loaned_total = 0
     
     if not df_raw.empty:
-        # 分組計算時，需要保留 'Category' 和 'ID' (取第一筆) 才能顯示正確圖片
-        # 但 ID 是獨一無二的，這裡我們是在做「同名商品合併顯示」
-        # 所以我們會取其中一個 ID 來當作該商品的圖片代表 (通常同名商品圖片一樣)
+        # 使用 agg 解決 Pandas FutureWarning
         grouped = df_raw.groupby(['Name', 'Brand', 'Type', 'Category']).agg(
-            Representative_ID=('ID', 'first'), # 取第一個ID來找圖片
+            Representative_ID=('ID', 'first'),
             Total_Qty=('Availability', 'count'),
             Physical_Avail=('Availability', lambda x: (x == 'Yes').sum()),
             Physical_Loaned=('Availability', lambda x: (x == 'No').sum())
@@ -248,6 +260,7 @@ def dashboard():
             name = row['Name']
             p_qty = pending_map.get(name, 0)
             
+            # 淨可用 = 物理可用 - 預訂
             net_avail = row['Physical_Avail'] - p_qty
             if net_avail < 0: net_avail = 0 
             
@@ -255,8 +268,8 @@ def dashboard():
                 'Name': name,
                 'Brand': row['Brand'],
                 'Type': row['Type'],
-                'Category': row['Category'], # 用於 Fallback 圖片
-                'Rep_ID': row['Representative_ID'], # 用於 Item 圖片
+                'Category': row['Category'],
+                'Rep_ID': row['Representative_ID'],
                 'Total_Qty': row['Total_Qty'],
                 'Physical_Avail': row['Physical_Avail'],
                 'Loaned_Qty': row['Physical_Loaned'],
@@ -282,8 +295,9 @@ def dashboard():
                            types=types, brands=brands,
                            curr_cat=cat_filter, curr_type=type_filter, 
                            curr_brand=brand_filter, curr_status=status_filter,
-                           curr_search=search_query) # [回傳]
+                           curr_search=search_query)
 
+# --- 購物車 API ---
 @app.route('/api_update_cart', methods=['POST'])
 def api_update_cart():
     data = request.json
@@ -308,6 +322,7 @@ def api_clear_cart():
     session.pop('cart', None)
     return {'status': 'success'}
 
+# --- Generate Request ---
 @app.route('/generate_request', methods=['POST'])
 def generate_request():
     loan_date = request.form.get('expected_loan_date')
@@ -353,6 +368,7 @@ def generate_request():
                            return_date=return_date, return_time=return_time,
                            items=request_items)
 
+# --- 處理 Pending 狀態 ---
 @app.route('/process_request/<request_id>/<action>')
 def process_request(request_id, action):
     if 'user' not in session: return redirect(url_for('dashboard'))
@@ -366,7 +382,7 @@ def process_request(request_id, action):
         flash(f'Error updating request: {e}', 'danger')
     return redirect(url_for('loan_forms'))
 
-# --- [修改] Loan & Return (接收 search 參數) ---
+# --- Loan & Return ---
 @app.route('/loan_return', methods=['GET', 'POST'])
 def loan_return():
     if 'user' not in session: 
@@ -376,7 +392,7 @@ def loan_return():
     conn = get_db()
     cat_filter = request.args.get('category', 'ALL')
     brand_filter = request.args.get('brand', 'ALL')
-    search_query = request.args.get('search', '') # [新增]
+    search_query = request.args.get('search', '')
     
     if request.method == 'POST':
         action = request.form.get('action')
@@ -413,12 +429,12 @@ def loan_return():
         return redirect(url_for('loan_return', category=cat_filter, brand=brand_filter, search=search_query))
 
     brands = fetch_brands(cat_filter)
-    # 傳入 search_query
     available_data = fetch_equipment_data(availability='Yes', category_filter=cat_filter, brand_filter=brand_filter, search_query=search_query).to_dict(orient='records')
     loaned_data = fetch_equipment_data(availability='No', category_filter=cat_filter, brand_filter=brand_filter, search_query=search_query).to_dict(orient='records')
 
     return render_template('loan_return.html', avail=available_data, loaned=loaned_data, curr_cat=cat_filter, curr_brand=brand_filter, curr_search=search_query, brands=brands)
 
+# --- Loan Forms ---
 @app.route('/loan_forms')
 def loan_forms():
     if 'user' not in session: return redirect(url_for('dashboard'))
@@ -455,57 +471,50 @@ def loan_forms():
                     'loan_dt': loan_date,
                     'item_list': group.to_dict(orient='records'),
                     'count': len(group),
+                    'status': 'Complete' if is_complete else 'Active',
                     'is_complete': is_complete
                 }
     except: pass
     
     return render_template('loan_forms.html', pending=pending_forms, history=history_forms)
 
-# --- [修改] Upload Images (新增 Item 類型 & 讀取所有 Item) ---
+# --- Upload Images ---
 @app.route('/upload_images', methods=['GET', 'POST'])
 def upload_images():
     if 'user' not in session: return redirect(url_for('dashboard'))
-    
     brands = fetch_brands('ALL')
     categories = ['Lights', 'Camera', 'Digital Tablet', 'Audio', 'VR Headset', 'Stabilizer', 'Tripod', 'Filter', 'Lens', 'DACI Lighting Set', 'DACI Lighting Tripod', 'Others']
-    
-    # 讀取所有 Item (用於下拉選單)
     conn = get_db()
     items_df = pd.read_sql_query("SELECT Equipment_ID, Name FROM Equipment_List ORDER BY Name", conn)
     all_items = items_df.to_dict(orient='records')
 
     if request.method == 'POST':
-        upload_type = request.form.get('upload_type') # category, brand, item
+        upload_type = request.form.get('upload_type')
         target_name = request.form.get('target_name')
         file = request.files['image_file']
-
         if file and target_name:
             try:
                 img = Image.open(file)
-                
-                # 決定大小和檔名前綴
                 if upload_type == 'item':
-                    img = img.resize((60, 60), Image.Resampling.LANCZOS) # Item 圖稍微大一點
+                    img = img.resize((60, 60), Image.Resampling.LANCZOS)
                     prefix = "item"
                 else:
                     img = img.resize((50, 50), Image.Resampling.LANCZOS)
                     prefix = "cat" if upload_type == "category" else "brand"
-                
                 filename = f"{prefix}_{target_name}.png"
                 img.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-                
                 flash(f'Image for {target_name} uploaded!', 'success')
             except Exception as e:
                 flash(f'Error: {e}', 'danger')
-        
         return redirect(url_for('upload_images'))
-
     return render_template('upload_images.html', brands=brands, categories=categories, all_items=all_items)
 
+# --- DB Manage (修正 Remarks 寫入) ---
 @app.route('/db_manage', methods=['GET', 'POST'])
 def db_manage():
     if 'user' not in session: return redirect(url_for('dashboard'))
     conn = get_db()
+    
     if request.method == 'POST' and 'delete_id' in request.form:
         delete_id = request.form.get('delete_id')
         try:
@@ -515,6 +524,7 @@ def db_manage():
             flash('Deleted successfully.', 'success')
         except Exception as e: flash(f'Error: {e}', 'danger')
         return redirect(url_for('db_manage'))
+
     if request.method == 'POST' and 'add_item' in request.form:
         new_id = request.form.get('new_id')
         name = request.form.get('name')
@@ -522,10 +532,10 @@ def db_manage():
         type_ = request.form.get('type')
         category = request.form.get('category')
         qty = request.form.get('qty', 1)
-        remarks = request.form.get('remarks', '') # [新增] 取得 Remarks，沒填則為空
+        remarks = request.form.get('remarks', '')
         
         try:
-            # [修改] 使用明確的欄位名稱 (Explicit Columns) 來插入資料，包含 Remarks
+            # 確保欄位數量匹配 (8個欄位)
             conn.execute("""
                 INSERT INTO Equipment_List (Equipment_ID, Name, Brand, Type, Category, Remarks, Qty, item_created)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -537,12 +547,10 @@ def db_manage():
             """, (new_id,))
             
             conn.commit()
-            flash(f'Item {new_id} added successfully!', 'success')
-        except sqlite3.IntegrityError:
-            flash(f'Error: ID {new_id} already exists!', 'danger')
-        except Exception as e:
-            flash(f'Error adding item: {e}', 'danger')
+            flash('Item added successfully!', 'success')
+        except Exception as e: flash(f'Error: {e}', 'danger')
         return redirect(url_for('db_manage'))
+
     df = pd.read_sql_query("SELECT * FROM Equipment_List ORDER BY item_created DESC", conn)
     return render_template('db_manage.html', items=df.to_dict(orient='records'), brands=fetch_brands('ALL'), types=fetch_types())
 
