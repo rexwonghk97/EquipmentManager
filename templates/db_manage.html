@@ -65,7 +65,7 @@
                         </select>
                     </div>
                     
-                    <!-- [新增] Remarks Input -->
+                    <!-- Remarks Input -->
                     <div class="col-md-9">
                         <label class="form-label">Remarks</label>
                         <input type="text" name="remarks" class="form-control" placeholder="Optional notes (e.g. serial number, condition...)">
@@ -98,7 +98,7 @@
                             <th width="20%">Name</th>
                             <th width="15%">Brand</th>
                             <th width="15%">Category</th>
-                            <th width="25%">Remarks</th> <!-- [新增] 欄位 -->
+                            <th width="25%">Remarks</th> 
                             <th width="10%">Qty</th>
                             <th width="5%">Action</th>
                         </tr>
@@ -110,7 +110,7 @@
                             <td>{{ item['Name'] }}</td>
                             <td>{{ item['Brand'] }}</td>
                             <td><span class="badge bg-secondary">{{ item['Category'] }}</span></td>
-                            <!-- [新增] 顯示 Remarks -->
+                            <!-- Show Remarks -->
                             <td class="text-muted small">{{ item['Remarks'] if item['Remarks'] else '-' }}</td>
                             <td>{{ item['Qty'] }}</td>
                             <td>
