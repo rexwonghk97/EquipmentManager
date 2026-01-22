@@ -2,48 +2,114 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>DACI Equipment Manager</title>
+    <title>DACI E.Manager</title>
+    <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #f8f9fa; }
-        .sidebar { min-height: 100vh; background: #fff; border-right: 1px solid #ddd; }
-        .nav-link { color: #333; font-weight: 500; padding: 12px 15px; margin-bottom: 5px; transition: all 0.2s;}
-        .nav-link:hover { background-color: #f1f3f5; border-radius: 10px; }
-        .nav-link.active { background-color: #e3f2fd; color: #0d6efd; border-radius: 10px;}
-        .metric-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .login-box { background-color: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 5px; border: 1px solid #e9ecef;}
+        body { 
+            background-color: #f8f9fa; 
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Sidebar 樣式 */
+        .sidebar { 
+            min-height: 100vh; 
+            background: #fff; 
+            border-right: 1px solid #ddd; 
+        }
+        
+        /* 選單連結樣式 */
+        .nav-link { 
+            color: #333; 
+            font-weight: 500; 
+            padding: 12px 15px; 
+            margin-bottom: 5px; 
+            transition: all 0.2s;
+        }
+        .nav-link:hover { 
+            background-color: #f1f3f5; 
+            border-radius: 10px; 
+        }
+        .nav-link.active { 
+            background-color: #e3f2fd; 
+            color: #0d6efd; 
+            border-radius: 10px;
+        }
+        
+        /* 卡片通用樣式 */
+        .metric-card { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 20px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+        }
+        
+        /* 側邊欄登入框樣式 */
+        .login-box { 
+            background-color: #f8f9fa; 
+            padding: 15px; 
+            border-radius: 10px; 
+            margin-top: 5px; 
+            border: 1px solid #e9ecef;
+        }
+        
+        /* Logout 按鈕樣式 */
         .logout-link { color: #dc3545; } 
-        .logout-link:hover { background-color: #fff5f5; color: #dc3545; }
-        .user-badge { font-size: 0.8rem; color: #6c757d; padding-left: 15px; margin-bottom: 5px; display: block;}
+        .logout-link:hover { 
+            background-color: #fff5f5; 
+            color: #dc3545; 
+        }
+        
+        /* 使用者名稱標籤 */
+        .user-badge { 
+            font-size: 0.8rem; 
+            color: #6c757d; 
+            padding-left: 15px; 
+            margin-bottom: 5px; 
+            display: block;
+        }
+
+        /* [新增] Footer 樣式 */
+        .footer-text {
+            text-align: center;
+            padding: 15px 0;
+            color: #adb5bd;
+            font-size: 0.9rem;
+            margin-top: auto; /* 推到最底 */
+            border-top: 1px solid #e9ecef;
+            background-color: #f8f9fa;
+        }
     </style>
 </head>
 <body>
 
-<div class="container-fluid">
-    <div class="row">
+<div class="container-fluid flex-grow-1">
+    <div class="row h-100">
         <!-- Sidebar -->
         <div class="col-md-2 sidebar p-3 d-flex flex-column">
-    
+            <!-- Logo 與標題 -->
             <div class="d-flex align-items-center mb-4 px-2">
-                <!-- Logo 圖片 -->
-                <!-- style="height: 1.5rem;" picture height follows H4 size -->
+                <!-- 如果你有 logo.png 請放在 static 資料夾，否則只顯示文字 -->
                 <img src="{{ url_for('static', filename='logo.png') }}" 
-             alt="Logo" 
-             style="height: 3rem; width: auto; margin-right: 10px; object-fit: contain;">
-             
-                <!-- Title -->
-                <h4 class="mb-0" style="font-weight: 700; font-size: 1.25rem;">Equipment Manager
+                     alt="Logo" 
+                     onerror="this.style.display='none'"
+                     style="height: 1.8rem; width: auto; margin-right: 10px; object-fit: contain;">
+                <h4 class="mb-0" style="font-weight: 700; font-size: 1.25rem;">DACI E.Manager</h4>
             </div>
             
             <nav class="nav flex-column mb-auto">
-            
-            <nav class="nav flex-column mb-auto">
+                <!-- 1. View Equipment (永遠顯示) -->
                 <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
                     <i class="fas fa-search me-2"></i> View Equipment
                 </a>
 
+                <!-- 2. 判斷登入狀態 -->
                 {% if session.get('user') %}
+                    <!-- [已登入] 顯示功能連結 -->
                     <a class="nav-link {% if request.endpoint == 'loan_return' %}active{% endif %}" href="{{ url_for('loan_return') }}">
                         <i class="fas fa-exchange-alt me-2"></i> Loan & Return
                     </a>
@@ -51,9 +117,10 @@
                     <a class="nav-link {% if request.endpoint == 'loan_forms' %}active{% endif %}" href="{{ url_for('loan_forms') }}">
                         <i class="fas fa-file-invoice me-2"></i> Loan Forms Record
                     </a>
-
+                    
                     <hr class="my-2">
                     
+                    <!-- 管理連結 -->
                     <h6 class="text-muted px-3 mt-2" style="font-size: 0.75rem; text-transform: uppercase;">Admin Tools</h6>
                     
                     <a class="nav-link {% if request.endpoint == 'db_manage' %}active{% endif %}" href="{{ url_for('db_manage') }}">
@@ -66,12 +133,14 @@
                     
                     <hr class="my-2">
                     
+                    <!-- [已登入] 顯示使用者名稱 & Logout -->
                     <span class="user-badge">Signed in as <strong>{{ session.get('user') }}</strong></span>
                     <a class="nav-link logout-link" href="{{ url_for('logout') }}">
                         <i class="fas fa-sign-out-alt me-2"></i> Logout
                     </a>
 
                 {% else %}
+                    <!-- [未登入] 顯示登入框 -->
                     <div class="login-box">
                         <h6 class="text-muted mb-2" style="font-size: 0.9rem;"><i class="fas fa-lock"></i> Staff Access</h6>
                         <form action="{{ url_for('login_action') }}" method="POST">
@@ -82,6 +151,7 @@
                                 </select>
                             </div>
                             <div class="mb-2">
+                                <!-- 移除 placeholder 的 0000 提示 -->
                                 <input type="password" name="password" class="form-control form-control-sm" placeholder="Password">
                             </div>
                             <button type="submit" class="btn btn-primary btn-sm w-100">Login</button>
@@ -91,7 +161,9 @@
             </nav>
         </div>
 
+        <!-- Main Content -->
         <div class="col-md-10 p-4">
+            <!-- Flash 訊息顯示區 -->
             {% with messages = get_flashed_messages(with_categories=true) %}
               {% if messages %}
                 {% for category, message in messages %}
@@ -103,14 +175,22 @@
               {% endif %}
             {% endwith %}
 
+            <!-- 頁面內容區塊 -->
             {% block content %}{% endblock %}
         </div>
     </div>
 </div>
 
-    
-<script src="https://cdn.botpress.cloud/webchat/v3.5/inject.js"></script>
+<!-- [新功能] 全域 Footer -->
+<footer class="footer-text">
+    Beta Version, Developed by Rex and Tobby
+</footer>
+
+<!-- Botpress Chatbot Injection -->
+<script src="https://cdn.botpress.cloud/webchat/v3.3/inject.js" defer></script>
 <script src="https://files.bpcontent.cloud/2025/11/28/07/20251128070355-154WKTZ2.js" defer></script>
+
+<!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
