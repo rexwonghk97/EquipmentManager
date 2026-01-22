@@ -25,10 +25,9 @@
         <!-- Sidebar -->
         <div class="col-md-2 sidebar p-3 d-flex flex-column">
     
-    <!-- 👇 修改開始：Logo 與標題區塊 -->
             <div class="d-flex align-items-center mb-4 px-2">
                 <!-- Logo 圖片 -->
-                <!-- style="height: 1.5rem;" 會讓圖片高度跟隨 h4 的字體大小 -->
+                <!-- style="height: 1.5rem;" picture height follows H4 size -->
                 <img src="{{ url_for('static', filename='logo.png') }}" 
              alt="Logo" 
              style="height: 3rem; width: auto; margin-right: 10px; object-fit: contain;">
@@ -55,7 +54,6 @@
 
                     <hr class="my-2">
                     
-                    <!-- [新功能] 管理連結 -->
                     <h6 class="text-muted px-3 mt-2" style="font-size: 0.75rem; text-transform: uppercase;">Admin Tools</h6>
                     
                     <a class="nav-link {% if request.endpoint == 'db_manage' %}active{% endif %}" href="{{ url_for('db_manage') }}">
