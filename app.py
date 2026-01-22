@@ -1,6 +1,5 @@
 import os
 import json
-# [移除] Email 相關的 import
 from flask import Flask, render_template, request, redirect, url_for, session, g, flash
 import sqlite3
 import pandas as pd
@@ -15,10 +14,8 @@ DATABASE = 'daci_database.db'
 UPLOAD_FOLDER = 'static/icons'
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# 確保圖片資料夾存在
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# --- 1. 資料庫連線 ---
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -32,11 +29,6 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-# --- 2. 輔助函數 ---
-
-# [移除] def send_email_notification(...) 整段已被刪除
-
-# 前端圖片路徑輔助
 @app.context_processor
 def utility_processor():
     def get_icon_path(prefix, name):
@@ -47,7 +39,6 @@ def utility_processor():
         return None
     return dict(get_icon_path=get_icon_path)
 
-# 取得品牌列表
 def fetch_brands(category_filter='ALL'):
     conn = get_db()
     known_categories = [
@@ -80,7 +71,6 @@ def fetch_types():
     except:
         return []
 
-# 核心資料查詢 (含搜尋功能)
 def fetch_equipment_data(availability='All', equipment_type='ALL', category_filter='ALL', brand_filter='ALL', search_query=''):
     conn = get_db()
     query_conditions = []
@@ -112,7 +102,6 @@ def fetch_equipment_data(availability='All', equipment_type='ALL', category_filt
         query_conditions.append("Equipment_List.Brand = ?")
         params.append(brand_filter)
 
-    # [搜尋功能]
     if search_query:
         query_conditions.append("(Equipment_List.Name LIKE ? OR Equipment_List.Brand LIKE ? OR Equipment_List.Equipment_ID LIKE ?)")
         search_term = f"%{search_query}%"
@@ -139,8 +128,6 @@ def fetch_equipment_data(availability='All', equipment_type='ALL', category_filt
     df = pd.read_sql_query(query, conn, params=params)
     return df
 
-# --- 3. 路由 (Routes) ---
-
 @app.route('/')
 def index():
     return redirect(url_for('dashboard'))
@@ -162,7 +149,6 @@ def logout():
     flash('Logged out successfully.', 'info')
     return redirect(url_for('dashboard'))
 
-# --- Dashboard (含 Pending 計算) ---
 @app.route('/dashboard')
 def dashboard():
     cat_filter = request.args.get('category', 'ALL')
@@ -176,10 +162,8 @@ def dashboard():
 
     conn = get_db()
     
-    # 1. 取得物理庫存
     df_raw = fetch_equipment_data(db_status, type_filter, cat_filter, brand_filter, search_query)
     
-    # 2. 計算 Pending (被預訂) 數量
     pending_map = {} 
     total_pending_count = 0
     try:
@@ -197,7 +181,6 @@ def dashboard():
     except:
         pass 
 
-    # 3. 整合資料
     final_data = []
     total_assets = 0
     physical_loaned_total = 0
@@ -251,7 +234,6 @@ def dashboard():
                            curr_brand=brand_filter, curr_status=status_filter,
                            curr_search=search_query)
 
-# --- 購物車 API ---
 @app.route('/api_update_cart', methods=['POST'])
 def api_update_cart():
     data = request.json
@@ -276,7 +258,6 @@ def api_clear_cart():
     session.pop('cart', None)
     return {'status': 'success'}
 
-# --- Generate Request (Email 功能已移除) ---
 @app.route('/generate_request', methods=['POST'])
 def generate_request():
     loan_date = request.form.get('expected_loan_date')
@@ -309,8 +290,6 @@ def generate_request():
     except Exception as e:
         flash(f'Error saving request: {e}', 'danger')
 
-    # [移除] 這裡原本呼叫 send_email_notification 的程式碼已刪除
-
     session.pop('cart', None)
 
     return render_template('request_summary.html', 
@@ -320,7 +299,6 @@ def generate_request():
                            return_date=return_date, return_time=return_time,
                            items=request_items)
 
-# --- 處理 Pending 狀態 ---
 @app.route('/process_request/<request_id>/<action>')
 def process_request(request_id, action):
     if 'user' not in session: return redirect(url_for('dashboard'))
