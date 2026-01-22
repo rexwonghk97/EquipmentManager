@@ -1,8 +1,6 @@
 import os
 import json
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+# [移除] Email 相關的 import
 from flask import Flask, render_template, request, redirect, url_for, session, g, flash
 import sqlite3
 import pandas as pd
@@ -36,50 +34,7 @@ def close_connection(exception):
 
 # --- 2. 輔助函數 ---
 
-# Email 發送功能
-def send_email_notification(request_id, loan_dt, return_dt, items):
-    sender_email = "your_email@gmail.com"
-    sender_password = "your_app_password" # Google App Password
-    
-    # 收件人列表 (請填寫真實 Email)
-    receiver_emails = ["abc@gmail.com"] 
-
-    subject = f"New Equipment Request: #{request_id}"
-    
-    msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = ", ".join(receiver_emails) # 顯示用字串
-    msg['Subject'] = subject
-
-    items_html = "<ul>"
-    for item in items:
-        items_html += f"<li>{item['name']} (Qty: {item['qty']})</li>"
-    items_html += "</ul>"
-
-    body = f"""
-    <h3>New Equipment Request Received</h3>
-    <p><strong>Request ID:</strong> {request_id}</p>
-    <p><strong>Expected Loan:</strong> {loan_dt}</p>
-    <p><strong>Expected Return:</strong> {return_dt}</p>
-    <hr>
-    <h4>Requested Items:</h4>
-    {items_html}
-    <p>Status: <strong>Pending</strong></p>
-    <p>Please login to DACI E.Manager to review.</p>
-    """
-    
-    msg.attach(MIMEText(body, 'html'))
-
-    try:
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        text = msg.as_string()
-        server.sendmail(sender_email, receiver_emails, text) # 傳送用 List
-        server.quit()
-        print(f"✅ Email notification for #{request_id} sent successfully.")
-    except Exception as e:
-        print(f"⚠️ Email sending skipped/failed: {e}")
+# [移除] def send_email_notification(...) 整段已被刪除
 
 # 前端圖片路徑輔助
 @app.context_processor
@@ -248,7 +203,6 @@ def dashboard():
     physical_loaned_total = 0
     
     if not df_raw.empty:
-        # 使用 agg 解決 Pandas FutureWarning
         grouped = df_raw.groupby(['Name', 'Brand', 'Type', 'Category']).agg(
             Representative_ID=('ID', 'first'),
             Total_Qty=('Availability', 'count'),
@@ -322,7 +276,7 @@ def api_clear_cart():
     session.pop('cart', None)
     return {'status': 'success'}
 
-# --- Generate Request ---
+# --- Generate Request (Email 功能已移除) ---
 @app.route('/generate_request', methods=['POST'])
 def generate_request():
     loan_date = request.form.get('expected_loan_date')
@@ -355,9 +309,7 @@ def generate_request():
     except Exception as e:
         flash(f'Error saving request: {e}', 'danger')
 
-    loan_dt_str = f"{loan_date} {loan_time}"
-    return_dt_str = f"{return_date} {return_time}"
-    send_email_notification(request_id, loan_dt_str, return_dt_str, request_items)
+    # [移除] 這裡原本呼叫 send_email_notification 的程式碼已刪除
 
     session.pop('cart', None)
 
@@ -471,7 +423,6 @@ def loan_forms():
                     'loan_dt': loan_date,
                     'item_list': group.to_dict(orient='records'),
                     'count': len(group),
-                    'status': 'Complete' if is_complete else 'Active',
                     'is_complete': is_complete
                 }
     except: pass
@@ -509,7 +460,7 @@ def upload_images():
         return redirect(url_for('upload_images'))
     return render_template('upload_images.html', brands=brands, categories=categories, all_items=all_items)
 
-# --- DB Manage (修正 Remarks 寫入) ---
+# --- DB Manage ---
 @app.route('/db_manage', methods=['GET', 'POST'])
 def db_manage():
     if 'user' not in session: return redirect(url_for('dashboard'))
@@ -535,7 +486,6 @@ def db_manage():
         remarks = request.form.get('remarks', '')
         
         try:
-            # 確保欄位數量匹配 (8個欄位)
             conn.execute("""
                 INSERT INTO Equipment_List (Equipment_ID, Name, Brand, Type, Category, Remarks, Qty, item_created)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
