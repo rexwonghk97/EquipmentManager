@@ -44,7 +44,7 @@
 
     <!-- Search & Brand -->
     <div class="row g-3">
-        <!-- [新功能] Search Bar -->
+        <!-- Search Bar -->
         <div class="col-md-4">
             <form method="GET" action="{{ url_for('loan_return') }}">
                 <input type="hidden" name="category" value="{{ curr_cat }}">
@@ -116,7 +116,7 @@
                             <td class="text-center">
                                 <input class="form-check-input" type="checkbox" name="equipment_ids" value="{{ item['ID'] }}">
                             </td>
-                            <!-- 顯示圖片 -->
+                            <!-- Picture -->
                             <td>
                                 <div style="width: 40px; height: 40px; background: #eee; border-radius: 4px; overflow: hidden;">
                                     {% if item_img %}
