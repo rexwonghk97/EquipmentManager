@@ -2,7 +2,7 @@
 
 {% block content %}
 
-<!-- 自定義 CSS -->
+<!-- Custom CSS -->
 <style>
     .brand-card {
         transition: transform 0.2s, box-shadow 0.2s;
@@ -75,7 +75,6 @@
 <!-- 1. Layout: Left Metrics / Right Categories -->
 <div class="row mb-4">
     
-    <!-- 左側：垂直數據卡片 -->
     <div class="col-md-3">
         <div class="metric-card d-flex align-items-center justify-content-between mb-3">
             <div><small class="text-muted fw-bold">TOTAL ASSETS</small><h2 class="mb-0 mt-1">{{ total }}</h2></div>
@@ -91,7 +90,6 @@
         </div>
     </div>
 
-    <!-- 右側：分類瀏覽區 -->
     <div class="col-md-9">
         <div class="card p-3 h-100">
             <div class="d-flex justify-content-between align-items-center mb-2">
@@ -150,7 +148,6 @@
 </div>
 
 <!-- 3. Bottom Section: Search & Items Table -->
-<!-- 定義是否顯示列表的變數 -->
 {% set show_list = (curr_cat != 'ALL' or curr_search) %}
 
 <div class="card p-3 mb-5">
@@ -160,7 +157,7 @@
         <input type="hidden" name="category" value="{{ curr_cat }}">
         <input type="hidden" name="brand" value="{{ curr_brand }}">
         
-        <!-- Search Bar (動態調整寬度) -->
+        <!-- Search Bar -->
         <div class="{% if show_list %}col-md-4{% else %}col-md-10 offset-md-1{% endif %}">
             <div class="input-group input-group-lg">
                 <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
@@ -168,14 +165,12 @@
                 {% if curr_search %}
                     <a href="{{ url_for('dashboard', category=curr_cat, brand=curr_brand) }}" class="btn btn-outline-secondary" title="Clear Search">X</a>
                 {% endif %}
-                <!-- 如果沒有顯示列表，按鈕直接放這裡 -->
                 {% if not show_list %}
                 <button type="submit" class="btn btn-primary px-4">Search</button>
                 {% endif %}
             </div>
         </div>
 
-        <!-- Filters & Search Button (只有在顯示列表時才出現) -->
         {% if show_list %}
             <div class="col-md-3">
                 <select name="type" class="form-select form-select-lg" onchange="this.form.submit()">
@@ -202,7 +197,7 @@
         {% endif %}
     </form>
 
-    <!-- Table Section (只有符合條件時顯示) -->
+    <!-- Table Section -->
     {% if show_list %}
         <div class="table-responsive">
             <table class="table table-hover align-middle">
